@@ -44,7 +44,7 @@ func ExamplePool_TrySubmit() {
 		time.Sleep(200 * time.Millisecond)
 		return nil
 	}
-	pool.TrySubmit(longTask)
+	_ = pool.TrySubmit(longTask)
 
 	// This should fail immediately since worker is busy
 	quickTask := func(ctx context.Context) error {

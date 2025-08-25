@@ -77,7 +77,7 @@ func BenchmarkTokenBucketWaitN(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			tb.WaitN(ctx, 1)
+			_ = tb.WaitN(ctx, 1)
 		}
 	})
 }
@@ -89,7 +89,7 @@ func BenchmarkLeakyBucketWaitN(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			lb.WaitN(ctx, 1)
+			_ = lb.WaitN(ctx, 1)
 		}
 	})
 }

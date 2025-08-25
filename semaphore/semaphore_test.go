@@ -164,7 +164,7 @@ func TestAcquire(t *testing.T) {
 		sem := NewWeighted(1)
 
 		// Acquire the only permit
-		sem.Acquire(context.Background(), 1)
+		_ = sem.Acquire(context.Background(), 1)
 
 		// Try to acquire with canceled context
 		ctx, cancel := context.WithCancel(context.Background())
@@ -180,7 +180,7 @@ func TestAcquire(t *testing.T) {
 		sem := NewWeighted(1)
 
 		// Acquire the only permit
-		sem.Acquire(context.Background(), 1)
+		_ = sem.Acquire(context.Background(), 1)
 
 		// Try to acquire with timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -206,7 +206,7 @@ func TestRelease(t *testing.T) {
 		sem := NewWeighted(5)
 
 		// Acquire some permits
-		sem.Acquire(context.Background(), 3)
+		_ = sem.Acquire(context.Background(), 3)
 		if sem.Current() != 2 {
 			t.Fatalf("setup failed, expected 2 permits, got %d", sem.Current())
 		}
@@ -297,7 +297,7 @@ func TestFairness(t *testing.T) {
 		sem := NewWeighted(1, WithFairness(FIFO))
 
 		// Acquire the only permit
-		sem.Acquire(context.Background(), 1)
+		_ = sem.Acquire(context.Background(), 1)
 
 		var results []int
 		var mu sync.Mutex
@@ -316,7 +316,7 @@ func TestFairness(t *testing.T) {
 				// Add small delay to ensure consistent ordering
 				time.Sleep(time.Duration(id) * 10 * time.Millisecond)
 				
-				sem.Acquire(context.Background(), 1)
+				_ = sem.Acquire(context.Background(), 1)
 				mu.Lock()
 				results = append(results, id)
 				mu.Unlock()
@@ -348,7 +348,7 @@ func TestFairness(t *testing.T) {
 		sem := NewWeighted(1, WithFairness(LIFO))
 
 		// Acquire the only permit
-		sem.Acquire(context.Background(), 1)
+		_ = sem.Acquire(context.Background(), 1)
 
 		var results []int
 		var mu sync.Mutex
@@ -367,7 +367,7 @@ func TestFairness(t *testing.T) {
 				// Add small delay to ensure consistent ordering
 				time.Sleep(time.Duration(id) * 10 * time.Millisecond)
 				
-				sem.Acquire(context.Background(), 1)
+				_ = sem.Acquire(context.Background(), 1)
 				mu.Lock()
 				results = append(results, id)
 				mu.Unlock()

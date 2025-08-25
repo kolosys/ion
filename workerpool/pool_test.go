@@ -107,7 +107,7 @@ func TestSubmit(t *testing.T) {
 		}
 
 		// Submit the blocking task
-		go pool.Submit(context.Background(), longTask)
+		go func() { _ = pool.Submit(context.Background(), longTask) }()
 		time.Sleep(10 * time.Millisecond) // Let it start
 
 		// Try to submit another task with canceled context
@@ -175,8 +175,8 @@ func TestTrySubmit(t *testing.T) {
 		}
 
 		// Submit tasks to fill worker + queue
-		pool.TrySubmit(blockingTask) // fills worker
-		pool.TrySubmit(blockingTask) // fills queue
+		_ = pool.TrySubmit(blockingTask) // fills worker
+		_ = pool.TrySubmit(blockingTask) // fills queue
 
 		// This should fail
 		quickTask := func(ctx context.Context) error { return nil }
@@ -206,7 +206,7 @@ func TestPoolLifecycle(t *testing.T) {
 		}
 
 		// Submit task
-		go pool.Submit(context.Background(), task)
+		go func() { _ = pool.Submit(context.Background(), task) }()
 
 		// Wait for task to start
 		for !taskStarted.Load() {
@@ -242,9 +242,9 @@ func TestPoolLifecycle(t *testing.T) {
 		}
 
 		// Submit multiple tasks
-		pool.Submit(context.Background(), task) // starts immediately
-		pool.Submit(context.Background(), task) // queued
-		pool.Submit(context.Background(), task) // queued
+		_ = pool.Submit(context.Background(), task) // starts immediately
+		_ = pool.Submit(context.Background(), task) // queued
+		_ = pool.Submit(context.Background(), task) // queued
 
 		// Start draining
 		start := time.Now()

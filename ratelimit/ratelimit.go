@@ -83,12 +83,12 @@ type realClock struct{}
 
 func (realClock) Now() time.Time                             { return time.Now() }
 func (realClock) Sleep(d time.Duration)                      { time.Sleep(d) }
-func (realClock) AfterFunc(d time.Duration, f func()) Timer { return time.AfterFunc(d, f) }
+func (realClock) AfterFunc(d time.Duration, f func()) Timer { return &realTimer{time.AfterFunc(d, f)} }
 
 // realTimer wraps time.Timer to implement our Timer interface.
 type realTimer struct{ *time.Timer }
 
-func (t realTimer) Stop() bool { return t.Timer.Stop() }
+func (t *realTimer) Stop() bool { return t.Timer.Stop() }
 
 // Option configures rate limiter behavior.
 type Option func(*config)
