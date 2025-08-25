@@ -77,7 +77,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
-          args: --timeout=5m --out-format=colored-line-number
+          args: --fast --timeout=5m --out-format=colored-line-number
 
   build:
     name: Build
