@@ -307,8 +307,14 @@ func TestMetrics(t *testing.T) {
 
 func TestTaskPanicRecovery(t *testing.T) {
 	var panicValue any
+	var panicMutex sync.Mutex
+	var panicReceived bool
+
 	pool := New(1, 1, WithPanicRecovery(func(r any) {
+		panicMutex.Lock()
 		panicValue = r
+		panicReceived = true
+		panicMutex.Unlock()
 	}))
 	defer pool.Close(context.Background())
 
@@ -321,13 +327,30 @@ func TestTaskPanicRecovery(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Wait for panic recovery
-	time.Sleep(100 * time.Millisecond)
+	// Wait for panic recovery with proper synchronization
+	timeout := time.After(5 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
 
-	if panicValue != "test panic" {
-		t.Errorf("expected panic value 'test panic', got %v", panicValue)
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for panic recovery")
+		case <-ticker.C:
+			panicMutex.Lock()
+			if panicReceived {
+				expected := "test panic"
+				if panicValue != expected {
+					t.Errorf("expected panic value %q, got %v", expected, panicValue)
+				}
+				panicMutex.Unlock()
+				goto checkMetrics
+			}
+			panicMutex.Unlock()
+		}
 	}
 
+checkMetrics:
 	metrics := pool.Metrics()
 	if metrics.Panicked == 0 {
 		t.Error("expected panic count > 0")

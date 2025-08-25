@@ -2,7 +2,7 @@
 title: "Ion"
 description: "Robust, context-aware concurrency and scheduling primitives for Go applications"
 baseurl: "/ion"
-url: "https://kolosys.github.io"
+url: "https://kolosys.com"
 
 # Repository
 repository: "kolosys/ion"

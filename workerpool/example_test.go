@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/kolosys/ion/workerpool"
@@ -61,10 +62,18 @@ func ExamplePool_TrySubmit() {
 func ExamplePool_Drain() {
 	pool := workerpool.New(1, 2, workerpool.WithName("drain-example"))
 
-	// Submit tasks
+	// Submit tasks with synchronized output
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var outputs []string
+
 	for i := 0; i < 2; i++ {
+		wg.Add(1)
 		task := func(ctx context.Context) error {
-			fmt.Printf("Task completed\n")
+			defer wg.Done()
+			mu.Lock()
+			outputs = append(outputs, "Task completed")
+			mu.Unlock()
 			return nil
 		}
 		pool.Submit(context.Background(), task)
@@ -74,6 +83,14 @@ func ExamplePool_Drain() {
 	if err := pool.Drain(context.Background()); err != nil {
 		log.Printf("Drain failed: %v", err)
 	}
+	
+	// Wait for all tasks and then print in order
+	wg.Wait()
+	mu.Lock()
+	for _, output := range outputs {
+		fmt.Println(output)
+	}
+	mu.Unlock()
 	fmt.Println("All tasks finished")
 	// Output:
 	// Task completed
