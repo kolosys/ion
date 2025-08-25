@@ -1,0 +1,72 @@
+# Site settings
+title: "Ion"
+description: "Robust, context-aware concurrency and scheduling primitives for Go applications"
+baseurl: "/ion"
+url: "https://kolosys.github.io"
+
+# Repository
+repository: "kolosys/ion"
+
+# Theme
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Navigation
+header_pages:
+  - index.md
+  - getting-started.md
+  - components.md
+  - examples.md
+  - api-reference.md
+  - benchmarks.md
+  - contributing.md
+
+# Collections
+collections:
+  components:
+    output: true
+    permalink: /:collection/:name/
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "page"
+  - scope:
+      path: ""
+      type: "components"
+    values:
+      layout: "component"
+
+# Social
+github_username: kolosys
+twitter_username: kolosys
+
+# SEO
+logo: /ion/assets/images/kolosys-ion.png
+social:
+  name: Kolosys
+  links:
+    - https://github.com/kolosys
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
