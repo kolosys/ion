@@ -37,10 +37,7 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic
-
-      - name: Run tests with coverage
-        run: go test -v -cover
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -114,11 +111,18 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Build demo
-        run: go build -v ./cmd/demo
+      - name: Build examples
+        run: |
+          set -e  # Exit on any error
+          find examples -name "go.mod" -exec dirname {} \; | while read -r dir; do
+            echo "Building $dir..."
+            (cd "$dir" && go mod download && go build -v .)
+          done
 
       - name: Test build
         run: go test -c ./...
+
+
 
   security:
     name: Security Scan
