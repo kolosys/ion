@@ -37,43 +37,62 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Download Kolosys documentation tools
+        run: |
+          echo "📥 Downloading Kolosys documentation tools..."
+          mkdir -p .kolosys-docs
+          
+          # Download the shared documentation generator
+          curl -sSL https://raw.githubusercontent.com/kolosys/docs/main/shared/scripts/generate-docs.go \
+            -o .kolosys-docs/generate-docs.go
+
+      - name: Generate documentation configuration
+        run: |
+          if [ ! -f "kolosys-docs.json" ]; then
+            echo "📝 Creating default configuration..."
+            cat > kolosys-docs.json << 'CONFIG_EOF'
+          {
+            "repository": {
+              "name": "ion",
+              "owner": "kolosys",
+              "description": "Documentation for ion"
+            },
+            "packages": [
+              {
+                "name": "ion",
+                "description": "Main package",
+                "priority": 1
+              }
+            ],
+            "docs": {
+              "root_dir": ".",
+              "docs_dir": "docs"
+            },
+            "output": {
+              "generate_combined_api": true,
+              "generate_examples": true,
+              "verbose": true
+            }
+          }
+          CONFIG_EOF
+          fi
+
       - name: Build documentation
         run: |
-          # Make scripts executable and run documentation generation
-          chmod +x .scripts/*.sh
-          
-          echo "🚀 Building Ion documentation..."
-          
-          # Step 1: Generate API documentation from Go source
-          echo "📝 Generating API documentation from Go source..."
-          go run .scripts/generate-docs.go
-          
-          # Step 2: Copy static template files  
-          echo "📄 Copying documentation templates..."
-          if [ -d "docs-templates" ]; then
-            mkdir -p docs
-            cp docs-templates/*.md docs/ 2>/dev/null || echo "No template files to copy"
-          fi
-          
-          # Step 3: Generate examples documentation
-          echo "🔍 Generating examples documentation..."
-          bash .scripts/generate-examples-docs.sh || echo "Examples generation failed, continuing..."
-          
-          # Step 4: Generate combined API reference
-          echo "📚 Generating combined API reference..."
-          bash .scripts/generate-api-reference.sh || echo "API reference generation failed, continuing..."
-          
-          echo "✅ Documentation generation complete!"
+          echo "🚀 Building ion documentation..."
+          go run .kolosys-docs/generate-docs.go
 
       - name: Verify generated documentation
         run: |
           echo "📋 Checking generated documentation files..."
           ls -la docs/ || echo "No docs directory found"
           if [ -d "docs" ]; then
-            echo "📁 Contents of docs directory:"
             find docs -name "*.md" -type f | head -10
             echo "📊 Total markdown files: $(find docs -name "*.md" -type f | wc -l)"
           fi
+
+      - name: Cleanup
+        run: rm -rf .kolosys-docs
 
       - name: Commit generated documentation
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

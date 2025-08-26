@@ -1,0 +1,33 @@
+{
+  "repository": {
+    "name": "ion",
+    "owner": "kolosys",
+    "description": "Concurrency primitives for Go - worker pools, rate limiting, and semaphores"
+  },
+  "packages": [
+    {
+      "name": "workerpool",
+      "description": "Bounded worker pool with context-aware submission and graceful shutdown",
+      "priority": 1
+    },
+    {
+      "name": "ratelimit",
+      "description": "Token bucket and leaky bucket rate limiters with configurable options",
+      "priority": 2
+    },
+    {
+      "name": "semaphore",
+      "description": "Weighted semaphore with configurable fairness modes",
+      "priority": 3
+    }
+  ],
+  "docs": {
+    "root_dir": ".",
+    "docs_dir": "docs"
+  },
+  "output": {
+    "generate_combined_api": true,
+    "generate_examples": true,
+    "verbose": true
+  }
+}

@@ -1,6 +1,8 @@
 root: ./docs
 
 structure:
-  README: README.md
-# redirects:
-#   previous/page: new-folder/page.md
+  introduction: INTRODUCTION.md
+  summary: SUMMARY.md
+
+redirects:
+  previous/page: new-folder/page.md
