@@ -23,33 +23,6 @@ func main() {
 ```
 
 ## API Reference
-### Functions
-- [BenchmarkComparison_AllowN](api-reference.md#benchmarkcomparison_allown) - Benchmark comparing with golang.org/x/time/rate for reference
-
-- [BenchmarkHighContention](api-reference.md#benchmarkhighcontention) - High contention benchmark
-
-- [BenchmarkLeakyBucketAlloc](api-reference.md#benchmarkleakybucketalloc) - 
-- [BenchmarkLeakyBucketAllowN](api-reference.md#benchmarkleakybucketallown) - 
-- [BenchmarkLeakyBucketAllowN_Uncontended](api-reference.md#benchmarkleakybucketallown_uncontended) - 
-- [BenchmarkLeakyBucketAllowN_WithLeak](api-reference.md#benchmarkleakybucketallown_withleak) - 
-- [BenchmarkLeakyBucketWaitN](api-reference.md#benchmarkleakybucketwaitn) - 
-- [BenchmarkScalability](api-reference.md#benchmarkscalability) - Benchmark different burst/capacity sizes
-
-- [BenchmarkTokenBucketAlloc](api-reference.md#benchmarktokenbucketalloc) - Memory allocation benchmarks
-
-- [BenchmarkTokenBucketAllowN](api-reference.md#benchmarktokenbucketallown) - 
-- [BenchmarkTokenBucketAllowN_Uncontended](api-reference.md#benchmarktokenbucketallown_uncontended) - 
-- [BenchmarkTokenBucketAllowN_WithRefill](api-reference.md#benchmarktokenbucketallown_withrefill) - 
-- [BenchmarkTokenBucketWaitN](api-reference.md#benchmarktokenbucketwaitn) - 
-- [TestConcurrency](api-reference.md#testconcurrency) - 
-- [TestLeakyBucketAllowN](api-reference.md#testleakybucketallown) - 
-- [TestLeakyBucketNew](api-reference.md#testleakybucketnew) - 
-- [TestLeakyBucketWaitN](api-reference.md#testleakybucketwaitn) - 
-- [TestRate](api-reference.md#testrate) - 
-- [TestTokenBucketAllowN](api-reference.md#testtokenbucketallown) - 
-- [TestTokenBucketNew](api-reference.md#testtokenbucketnew) - 
-- [TestTokenBucketWaitN](api-reference.md#testtokenbucketwaitn) - 
-- [TestZeroRate](api-reference.md#testzerorate) - 
 ### Types
 - [Clock](api-reference.md#clock) - Clock abstracts time operations for testability.
 

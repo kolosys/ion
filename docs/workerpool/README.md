@@ -23,13 +23,6 @@ func main() {
 ```
 
 ## API Reference
-### Functions
-- [TestMetrics](api-reference.md#testmetrics) - 
-- [TestNew](api-reference.md#testnew) - 
-- [TestPoolLifecycle](api-reference.md#testpoollifecycle) - 
-- [TestSubmit](api-reference.md#testsubmit) - 
-- [TestTaskPanicRecovery](api-reference.md#testtaskpanicrecovery) - 
-- [TestTrySubmit](api-reference.md#testtrysubmit) - 
 ### Types
 - [Option](api-reference.md#option) - Option configures pool behavior
 
