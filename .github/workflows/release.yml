@@ -1,37 +1,14 @@
 name: Create Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.22"
-
-      - name: Generate Changelog
-        uses: heinrichreimer/github-changelog-generator-action@v2.3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: kolosys/.actions/.github/workflows/release-workflow.yml@main
+    with:
+      repository_name: "ion"
+      go_version: "1.22"
+    secrets:
+      app_id: ${{ vars.APP_ID }}
+      app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
