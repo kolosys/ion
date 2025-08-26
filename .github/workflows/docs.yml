@@ -1,0 +1,61 @@
+name: Generate Documentation
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - '**/*.go'
+      - 'docs/**'
+      - 'docs-templates/**'
+      - 'examples/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.go'
+      - 'docs/**'
+      - 'docs-templates/**'
+      - 'examples/**'
+  workflow_dispatch:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Build documentation
+        run: |
+          # Use our reusable build script
+          ./.scripts/build-docs.sh
+
+      - name: Commit generated documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Add generated files
+          git add docs/
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No documentation changes to commit"
+          else
+            git commit -m "📚 Auto-generate documentation from Go source code
+            
+            - Updated API documentation
+            - Generated examples from source
+            - Updated references
+            
+            [skip ci]"
+            git push
+          fi
