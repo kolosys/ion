@@ -3,20 +3,20 @@ name: Generate Documentation
 on:
   push:
     branches: [main]
-    paths: 
-      - '**/*.go'
-      - 'docs/**'
-      - 'docs-templates/**'
-      - 'examples/**'
-      - 'kolosys-docs.json'
+    paths:
+      - "**/*.go"
+      - "docs/**"
+      - "docs-templates/**"
+      - "examples/**"
+      - "kolosys-docs.json"
   pull_request:
     branches: [main]
     paths:
-      - '**/*.go'
-      - 'docs/**'
-      - 'docs-templates/**'
-      - 'examples/**'
-      - 'kolosys-docs.json'
+      - "**/*.go"
+      - "docs/**"
+      - "docs-templates/**"
+      - "examples/**"
+      - "kolosys-docs.json"
   workflow_dispatch:
 
 jobs:
@@ -28,5 +28,6 @@ jobs:
       generate_examples: true
       skip_commit: false
       create_pr: false
+    secrets:
       app_id: ${{ vars.APP_ID }}
       app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
