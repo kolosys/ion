@@ -8,7 +8,7 @@ url: "https://kolosys.com"
 repository: "kolosys/ion"
 
 # Theme - Using Kolosys Docs Theme
-remote_theme: kolosys/jeklyn-docs-theme
+remote_theme: kolosys/.github-theme
 plugins:
   - jekyll-feed
   - jekyll-sitemap
