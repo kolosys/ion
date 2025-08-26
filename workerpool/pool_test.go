@@ -169,28 +169,45 @@ func TestTrySubmit(t *testing.T) {
 		pool := New(1, 1)
 		defer pool.Close(context.Background())
 
-		// Fill the queue
+		// Use a channel to control when the blocking task starts and stops
+		started := make(chan struct{})
+		block := make(chan struct{})
+		
 		blockingTask := func(ctx context.Context) error {
-			time.Sleep(100 * time.Millisecond)
+			close(started)
+			<-block  // Block until we signal to continue
 			return nil
 		}
 
-		// Submit tasks to fill worker + queue
-		_ = pool.TrySubmit(blockingTask) // fills worker
-		_ = pool.TrySubmit(blockingTask) // fills queue
-
-		// This should fail
+		// Submit first task to fill worker
+		err1 := pool.TrySubmit(blockingTask)
+		if err1 != nil {
+			t.Fatalf("first submission should succeed: %v", err1)
+		}
+		
+		// Wait for first task to start
+		<-started
+		
+		// Submit second task to fill queue
 		quickTask := func(ctx context.Context) error { return nil }
-		err := pool.TrySubmit(quickTask)
+		err2 := pool.TrySubmit(quickTask)
+		if err2 != nil {
+			t.Fatalf("second submission should succeed: %v", err2)
+		}
 
-		if err == nil {
+		// Third submission should fail - queue is full
+		err3 := pool.TrySubmit(quickTask)
+		if err3 == nil {
 			t.Error("expected error when queue is full")
 		}
 
 		var poolErr *shared.PoolError
-		if !errors.As(err, &poolErr) {
-			t.Errorf("expected PoolError, got %T", err)
+		if !errors.As(err3, &poolErr) {
+			t.Errorf("expected PoolError, got %T", err3)
 		}
+		
+		// Unblock the first task to allow cleanup
+		close(block)
 	})
 }
 
