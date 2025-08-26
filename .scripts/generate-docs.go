@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/doc"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -48,6 +49,7 @@ type OutputConfig struct {
 // DocGenerator generates GitBook documentation from Go packages
 type DocGenerator struct {
 	config Config
+	fset   *token.FileSet
 }
 
 // PackageDoc represents documentation for a package
@@ -72,11 +74,22 @@ type FunctionDoc struct {
 
 // TypeDoc represents a type's documentation
 type TypeDoc struct {
-	Name     string
-	Doc      string
-	Decl     string
-	Methods  []FunctionDoc
-	Examples []ExampleDoc
+	Name       string
+	Doc        string
+	Decl       string
+	Kind       string        // "struct", "interface", "type", etc.
+	Fields     []FieldDoc    // For structs
+	Methods    []FunctionDoc
+	Examples   []ExampleDoc
+	Underlying string        // For type aliases
+}
+
+// FieldDoc represents a struct field
+type FieldDoc struct {
+	Name string
+	Type string
+	Tag  string
+	Doc  string
 }
 
 // ValueDoc represents a constant or variable
@@ -288,6 +301,9 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 		Doc:        docPkg.Doc,
 	}
 
+	// Store fset for detailed type extraction
+	g.fset = fset
+
 	// Extract functions
 	for _, f := range docPkg.Funcs {
 		pkgDoc.Functions = append(pkgDoc.Functions, FunctionDoc{
@@ -300,9 +316,12 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 	// Extract types
 	for _, t := range docPkg.Types {
 		typeDoc := TypeDoc{
-			Name: t.Name,
-			Doc:  t.Doc,
-			Decl: g.getTypeDecl(t),
+			Name:       t.Name,
+			Doc:        t.Doc,
+			Decl:       g.getTypeDecl(t),
+			Kind:       g.getTypeKind(t),
+			Fields:     g.getTypeFields(t),
+			Underlying: g.getTypeUnderlying(t),
 		}
 
 		// Extract methods
@@ -351,17 +370,123 @@ func (g *DocGenerator) parsePackage(packageName string) (*PackageDoc, error) {
 }
 
 func (g *DocGenerator) getFunctionSignature(f *doc.Func) string {
-	// This is a simplified version - in practice you'd want more sophisticated formatting
-	return fmt.Sprintf("func %s", f.Name)
+	if f.Decl != nil {
+		var buf strings.Builder
+		err := format.Node(&buf, g.fset, f.Decl)
+		if err == nil {
+			return buf.String()
+		}
+	}
+	return fmt.Sprintf("func %s(...)", f.Name)
 }
 
 func (g *DocGenerator) getTypeDecl(t *doc.Type) string {
-	// Simplified type declaration extraction
+	if t.Decl != nil {
+		var buf strings.Builder
+		err := format.Node(&buf, g.fset, t.Decl)
+		if err == nil {
+			return buf.String()
+		}
+	}
 	return fmt.Sprintf("type %s", t.Name)
 }
 
+func (g *DocGenerator) getTypeKind(t *doc.Type) string {
+	if t.Decl != nil && len(t.Decl.Specs) > 0 {
+		if typeSpec, ok := t.Decl.Specs[0].(*ast.TypeSpec); ok {
+			switch typeSpec.Type.(type) {
+			case *ast.StructType:
+				return "struct"
+			case *ast.InterfaceType:
+				return "interface"
+			case *ast.FuncType:
+				return "function"
+			case *ast.ArrayType:
+				return "array"
+			case *ast.MapType:
+				return "map"
+			case *ast.ChanType:
+				return "channel"
+			default:
+				return "type"
+			}
+		}
+	}
+	return "type"
+}
+
+func (g *DocGenerator) getTypeFields(t *doc.Type) []FieldDoc {
+	var fields []FieldDoc
+	
+	if t.Decl != nil && len(t.Decl.Specs) > 0 {
+		if typeSpec, ok := t.Decl.Specs[0].(*ast.TypeSpec); ok {
+			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+				for _, field := range structType.Fields.List {
+					fieldDoc := FieldDoc{}
+					
+					// Get field name
+					if len(field.Names) > 0 {
+						fieldDoc.Name = field.Names[0].Name
+					} else {
+						// Embedded field
+						if ident, ok := field.Type.(*ast.Ident); ok {
+							fieldDoc.Name = ident.Name
+						}
+					}
+					
+					// Get field type
+					var buf strings.Builder
+					err := format.Node(&buf, g.fset, field.Type)
+					if err == nil {
+						fieldDoc.Type = buf.String()
+					}
+					
+					// Get field tag
+					if field.Tag != nil {
+						fieldDoc.Tag = field.Tag.Value
+					}
+					
+					// Get field documentation
+					if field.Doc != nil {
+						fieldDoc.Doc = field.Doc.Text()
+					} else if field.Comment != nil {
+						fieldDoc.Doc = field.Comment.Text()
+					}
+					
+					fields = append(fields, fieldDoc)
+				}
+			}
+		}
+	}
+	
+	return fields
+}
+
+func (g *DocGenerator) getTypeUnderlying(t *doc.Type) string {
+	if t.Decl != nil && len(t.Decl.Specs) > 0 {
+		if typeSpec, ok := t.Decl.Specs[0].(*ast.TypeSpec); ok {
+			if _, ok := typeSpec.Type.(*ast.StructType); !ok {
+				if _, ok := typeSpec.Type.(*ast.InterfaceType); !ok {
+					// This is a type alias or named type
+					var buf strings.Builder
+					err := format.Node(&buf, g.fset, typeSpec.Type)
+					if err == nil {
+						return buf.String()
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func (g *DocGenerator) getValueDecl(spec *ast.ValueSpec) string {
-	// Simplified value declaration extraction
+	var buf strings.Builder
+	err := format.Node(&buf, g.fset, spec)
+	if err == nil {
+		return buf.String()
+	}
+	
 	if len(spec.Names) > 0 {
 		return spec.Names[0].Name
 	}
@@ -466,6 +591,26 @@ func (g *DocGenerator) generateAPIReference(pkg *PackageDoc, dir string) error {
 {{ .Decl }}
 ` + "```" + `
 
+{{- if eq .Kind "struct" }}
+{{- if .Fields }}
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+{{- range .Fields }}
+| ` + "`{{ .Name }}`" + ` | ` + "`{{ .Type }}`" + ` | {{ .Doc | oneline }} |
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if .Underlying }}
+#### Underlying Type
+
+` + "```go" + `
+{{ .Underlying }}
+` + "```" + `
+{{- end }}
+
 {{- if .Methods }}
 #### Methods
 
@@ -514,7 +659,18 @@ func (g *DocGenerator) generateAPIReference(pkg *PackageDoc, dir string) error {
 {{- end }}
 `
 
-	t, err := template.New("api").Parse(tmpl)
+	funcMap := template.FuncMap{
+		"oneline": func(s string) string {
+			// Convert to single line and trim
+			lines := strings.Split(strings.TrimSpace(s), "\n")
+			if len(lines) > 0 {
+				return strings.TrimSpace(lines[0])
+			}
+			return ""
+		},
+	}
+
+	t, err := template.New("api").Funcs(funcMap).Parse(tmpl)
 	if err != nil {
 		return err
 	}

@@ -5,42 +5,42 @@
 
 
 ```go
-func TestMetrics
+func TestMetrics(t *testing.T)
 ```
 ### TestNew
 
 
 
 ```go
-func TestNew
+func TestNew(t *testing.T)
 ```
 ### TestPoolLifecycle
 
 
 
 ```go
-func TestPoolLifecycle
+func TestPoolLifecycle(t *testing.T)
 ```
 ### TestSubmit
 
 
 
 ```go
-func TestSubmit
+func TestSubmit(t *testing.T)
 ```
 ### TestTaskPanicRecovery
 
 
 
 ```go
-func TestTaskPanicRecovery
+func TestTaskPanicRecovery(t *testing.T)
 ```
 ### TestTrySubmit
 
 
 
 ```go
-func TestTrySubmit
+func TestTrySubmit(t *testing.T)
 ```
 ## Types
 ### Option
@@ -49,7 +49,12 @@ Option configures pool behavior
 
 
 ```go
-type Option
+type Option func(*config)
+```
+#### Underlying Type
+
+```go
+func(*config)
 ```
 ### Pool
 
@@ -58,8 +63,56 @@ concurrency and queue management.
 
 
 ```go
-type Pool
+type Pool struct {
+	// Configuration
+	name         string
+	size         int
+	queueSize    int
+	drainTimeout time.Duration
+
+	// Observability
+	obs *shared.Observability
+
+	// Lifecycle management
+	baseCtx   context.Context
+	cancel    context.CancelFunc
+	closed    chan struct{}
+	draining  atomic.Bool
+	closeOnce sync.Once
+	drainOnce sync.Once
+
+	// Task management
+	taskCh   chan taskSubmission
+	workerWg sync.WaitGroup
+
+	// Metrics
+	metrics PoolMetrics
+
+	// Panic recovery
+	panicHandler func(any)
+	taskWrapper  func(Task) Task
+}
 ```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Configuration |
+| `size` | `int` |  |
+| `queueSize` | `int` |  |
+| `drainTimeout` | `time.Duration` |  |
+| `obs` | `*shared.Observability` | Observability |
+| `baseCtx` | `context.Context` | Lifecycle management |
+| `cancel` | `context.CancelFunc` |  |
+| `closed` | `chan struct{}` |  |
+| `draining` | `atomic.Bool` |  |
+| `closeOnce` | `sync.Once` |  |
+| `drainOnce` | `sync.Once` |  |
+| `taskCh` | `chan taskSubmission` | Task management |
+| `workerWg` | `sync.WaitGroup` |  |
+| `metrics` | `PoolMetrics` | Metrics |
+| `panicHandler` | `func(any)` | Panic recovery |
+| `taskWrapper` | `func(Task) Task` |  |
 #### Methods
 ##### Close
 
@@ -70,7 +123,7 @@ via task context cancellation.
 
 
 ```go
-func Close
+func (p *Pool) Close(ctx context.Context) error
 ```
 ##### Drain
 
@@ -80,7 +133,7 @@ to continue being processed until the queue is empty.
 
 
 ```go
-func Drain
+func (p *Pool) Drain(ctx context.Context) error
 ```
 ##### IsClosed
 
@@ -88,7 +141,7 @@ IsClosed returns true if the pool has been closed or is in the process of closin
 
 
 ```go
-func IsClosed
+func (p *Pool) IsClosed() bool
 ```
 ##### IsDraining
 
@@ -97,7 +150,7 @@ but still processing queued tasks)
 
 
 ```go
-func IsDraining
+func (p *Pool) IsDraining() bool
 ```
 ##### Metrics
 
@@ -105,7 +158,7 @@ Metrics returns a snapshot of the current pool metrics
 
 
 ```go
-func Metrics
+func (p *Pool) Metrics() PoolMetrics
 ```
 ##### Submit
 
@@ -116,7 +169,7 @@ it returns an appropriate error.
 
 
 ```go
-func Submit
+func (p *Pool) Submit(ctx context.Context, task Task) error
 ```
 ##### TrySubmit
 
@@ -127,7 +180,7 @@ it returns immediately.
 
 
 ```go
-func TrySubmit
+func (p *Pool) TrySubmit(task Task) error
 ```
 ##### executeTask
 
@@ -135,7 +188,7 @@ executeTask executes a single task with proper error handling and metrics
 
 
 ```go
-func executeTask
+func (p *Pool) executeTask(submission taskSubmission, workerID int)
 ```
 ##### worker
 
@@ -143,7 +196,7 @@ worker runs the main worker loop
 
 
 ```go
-func worker
+func (p *Pool) worker(id int)
 ```
 ### PoolMetrics
 
@@ -151,8 +204,25 @@ PoolMetrics holds runtime metrics for the pool
 
 
 ```go
-type PoolMetrics
+type PoolMetrics struct {
+	Size      int    // configured pool size
+	Queued    int64  // current queue length
+	Running   int64  // currently running tasks
+	Completed uint64 // total completed tasks
+	Failed    uint64 // total failed tasks
+	Panicked  uint64 // total panicked tasks
+}
 ```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Size` | `int` | configured pool size |
+| `Queued` | `int64` | current queue length |
+| `Running` | `int64` | currently running tasks |
+| `Completed` | `uint64` | total completed tasks |
+| `Failed` | `uint64` | total failed tasks |
+| `Panicked` | `uint64` | total panicked tasks |
 ### Task
 
 Task represents a unit of work to be executed by the worker pool.
@@ -161,20 +231,51 @@ context or the pool's base context is canceled.
 
 
 ```go
-type Task
+type Task func(ctx context.Context) error
+```
+#### Underlying Type
+
+```go
+func(ctx context.Context) error
 ```
 ### config
 
 
 
 ```go
-type config
+type config struct {
+	name         string
+	baseCtx      context.Context
+	drainTimeout time.Duration
+	obs          *shared.Observability
+	panicHandler func(any)
+	taskWrapper  func(Task) Task
+}
 ```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` |  |
+| `baseCtx` | `context.Context` |  |
+| `drainTimeout` | `time.Duration` |  |
+| `obs` | `*shared.Observability` |  |
+| `panicHandler` | `func(any)` |  |
+| `taskWrapper` | `func(Task) Task` |  |
 ### taskSubmission
 
 taskSubmission wraps a task with its submission context
 
 
 ```go
-type taskSubmission
+type taskSubmission struct {
+	task Task
+	ctx  context.Context
+}
 ```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `task` | `Task` |  |
+| `ctx` | `context.Context` |  |
