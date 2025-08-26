@@ -21,7 +21,7 @@ on:
 
 jobs:
   generate-docs:
-    uses: kolosys/docs/.github/workflows/docs-workflow.yml@main
+    uses: kolosys/.actions/.github/workflows/docs-workflow.yml@main
     with:
       repository_name: "ion"
       go_version: "1.22"
