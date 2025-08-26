@@ -62,10 +62,10 @@ func TestTokenBucketNew(t *testing.T) {
 }
 
 func TestTokenBucketAllowN(t *testing.T) {
-	clock := newTestClock(time.Now())
-	tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
-
 	t.Run("initial burst available", func(t *testing.T) {
+		clock := newTestClock(time.Now())
+		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow initial burst")
 		}
@@ -75,29 +75,31 @@ func TestTokenBucketAllowN(t *testing.T) {
 	})
 
 	t.Run("refill over time", func(t *testing.T) {
-		// Advance time by 1 second to add 10 tokens
+		clock := newTestClock(time.Now())
+		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		
+		// Use all initial tokens
+		if !tb.AllowN(clock.Now(), 5) {
+			t.Error("should allow initial burst")
+		}
+		
+		// Advance time by 1 second to add 10 tokens (limited to 5 by burst)
 		clock.Advance(time.Second)
 		
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow 5 tokens after refill")
 		}
 		
-		// Check how many tokens we actually have
-		tokens := tb.Tokens()
-		if tokens < 5 {
-			t.Logf("Only have %.1f tokens, expected at least 5", tokens)
-		}
-		
-		// Should have 5 tokens remaining (was 0, added 10, used 5), but limited by burst
-		// Actually: was 0, added 10 (limited to 5 by burst), used 5 = 0 remaining
+		// Should have 0 tokens remaining after using all refilled tokens
 		if tb.AllowN(clock.Now(), 1) {
 			t.Error("should not have tokens after using all")
 		}
-		
-
 	})
 
 	t.Run("zero and negative requests", func(t *testing.T) {
+		clock := newTestClock(time.Now())
+		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		
 		if !tb.AllowN(clock.Now(), 0) {
 			t.Error("should allow 0 tokens")
 		}

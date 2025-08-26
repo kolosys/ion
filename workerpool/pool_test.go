@@ -3,6 +3,7 @@ package workerpool
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -23,7 +24,7 @@ func TestNew(t *testing.T) {
 			name:      "default size",
 			size:      0,
 			queueSize: 10,
-			wantSize:  8, // GOMAXPROCS typically returns number of CPU cores
+			wantSize:  runtime.GOMAXPROCS(0), // Use actual GOMAXPROCS value
 		},
 		{
 			name:      "custom size",
