@@ -19,11 +19,6 @@ on:
       - 'kolosys-docs.json'
   workflow_dispatch:
 
-# Permissions required for auto-committing generated documentation
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   generate-docs:
     uses: kolosys/docs/.github/workflows/docs-workflow.yml@main
@@ -33,6 +28,5 @@ jobs:
       generate_examples: true
       skip_commit: false
       create_pr: false
-    # permissions:
-    #   contents: write
-    #   pull-requests: write
+      app_id: ${{ vars.APP_ID }}
+      app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
