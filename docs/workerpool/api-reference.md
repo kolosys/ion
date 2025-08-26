@@ -1,47 +1,4 @@
 # workerpool API Reference
-## Functions
-### TestMetrics
-
-
-
-```go
-func TestMetrics(t *testing.T)
-```
-### TestNew
-
-
-
-```go
-func TestNew(t *testing.T)
-```
-### TestPoolLifecycle
-
-
-
-```go
-func TestPoolLifecycle(t *testing.T)
-```
-### TestSubmit
-
-
-
-```go
-func TestSubmit(t *testing.T)
-```
-### TestTaskPanicRecovery
-
-
-
-```go
-func TestTaskPanicRecovery(t *testing.T)
-```
-### TestTrySubmit
-
-
-
-```go
-func TestTrySubmit(t *testing.T)
-```
 ## Types
 ### Option
 

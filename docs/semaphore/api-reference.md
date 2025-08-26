@@ -1,47 +1,4 @@
 # semaphore API Reference
-## Functions
-### TestAcquire
-
-
-
-```go
-func TestAcquire(t *testing.T)
-```
-### TestConcurrency
-
-
-
-```go
-func TestConcurrency(t *testing.T)
-```
-### TestFairness
-
-
-
-```go
-func TestFairness(t *testing.T)
-```
-### TestNewWeighted
-
-
-
-```go
-func TestNewWeighted(t *testing.T)
-```
-### TestRelease
-
-
-
-```go
-func TestRelease(t *testing.T)
-```
-### TestTryAcquire
-
-
-
-```go
-func TestTryAcquire(t *testing.T)
-```
 ## Types
 ### Fairness
 

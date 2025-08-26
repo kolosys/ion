@@ -22,13 +22,6 @@ func main() {
 ```
 
 ## API Reference
-### Functions
-- [TestAcquire](api-reference.md#testacquire) - 
-- [TestConcurrency](api-reference.md#testconcurrency) - 
-- [TestFairness](api-reference.md#testfairness) - 
-- [TestNewWeighted](api-reference.md#testnewweighted) - 
-- [TestRelease](api-reference.md#testrelease) - 
-- [TestTryAcquire](api-reference.md#testtryacquire) - 
 ### Types
 - [Fairness](api-reference.md#fairness) - Fairness defines the ordering behavior for semaphore waiters
 
