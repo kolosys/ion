@@ -9,3 +9,6 @@ jobs:
     uses: kolosys/.actions/.github/workflows/ci-workflow.yml@main
     with:
       go_version: "1.22"
+    secrets:
+      app_id: ${{ vars.APP_ID }}
+      app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
