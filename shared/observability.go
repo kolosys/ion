@@ -29,17 +29,17 @@ type Tracer interface {
 // NopLogger is a no-operation logger that discards all log messages
 type NopLogger struct{}
 
-func (NopLogger) Debug(msg string, kv ...any) {}
-func (NopLogger) Info(msg string, kv ...any)  {}
-func (NopLogger) Warn(msg string, kv ...any)  {}
+func (NopLogger) Debug(msg string, kv ...any)            {}
+func (NopLogger) Info(msg string, kv ...any)             {}
+func (NopLogger) Warn(msg string, kv ...any)             {}
 func (NopLogger) Error(msg string, err error, kv ...any) {}
 
 // NopMetrics is a no-operation metrics recorder that discards all metrics
 type NopMetrics struct{}
 
-func (NopMetrics) Inc(name string, kv ...any)              {}
-func (NopMetrics) Add(name string, v float64, kv ...any)   {}
-func (NopMetrics) Gauge(name string, v float64, kv ...any) {}
+func (NopMetrics) Inc(name string, kv ...any)                  {}
+func (NopMetrics) Add(name string, v float64, kv ...any)       {}
+func (NopMetrics) Gauge(name string, v float64, kv ...any)     {}
 func (NopMetrics) Histogram(name string, v float64, kv ...any) {}
 
 // NopTracer is a no-operation tracer that creates no spans

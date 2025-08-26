@@ -49,7 +49,7 @@ func ExampleSemaphore_Acquire() {
 	fmt.Printf("Acquired 1 permit, %d remaining\n", sem.Current())
 
 	// Do work...
-	
+
 	// Release the connection
 	sem.Release(1)
 	fmt.Printf("Released 1 permit, %d available\n", sem.Current())

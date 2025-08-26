@@ -81,8 +81,8 @@ type Timer interface {
 // realClock implements Clock using the real time functions.
 type realClock struct{}
 
-func (realClock) Now() time.Time                             { return time.Now() }
-func (realClock) Sleep(d time.Duration)                      { time.Sleep(d) }
+func (realClock) Now() time.Time                            { return time.Now() }
+func (realClock) Sleep(d time.Duration)                     { time.Sleep(d) }
 func (realClock) AfterFunc(d time.Duration, f func()) Timer { return &realTimer{time.AfterFunc(d, f)} }
 
 // realTimer wraps time.Timer to implement our Timer interface.
@@ -94,10 +94,10 @@ func (t *realTimer) Stop() bool { return t.Timer.Stop() }
 type Option func(*config)
 
 type config struct {
-	name     string
-	clock    Clock
-	jitter   float64
-	obs      *shared.Observability
+	name   string
+	clock  Clock
+	jitter float64
+	obs    *shared.Observability
 }
 
 // WithName sets the rate limiter name for observability and error reporting.

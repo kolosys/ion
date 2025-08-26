@@ -7,8 +7,8 @@ import (
 
 // testClock is a controllable clock implementation for testing.
 type testClock struct {
-	mu    sync.Mutex
-	now   time.Time
+	mu     sync.Mutex
+	now    time.Time
 	timers []*testTimer
 }
 
@@ -39,7 +39,7 @@ func (c *testClock) AfterFunc(d time.Duration, f func()) Timer {
 		fn:       f,
 		stopped:  false,
 	}
-	
+
 	c.timers = append(c.timers, timer)
 	return timer
 }
@@ -50,7 +50,7 @@ func (c *testClock) Advance(d time.Duration) {
 	defer c.mu.Unlock()
 
 	c.now = c.now.Add(d)
-	
+
 	// Fire any timers that should trigger
 	var remaining []*testTimer
 	for _, timer := range c.timers {
@@ -81,11 +81,11 @@ type testTimer struct {
 func (t *testTimer) Stop() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	if t.stopped {
 		return false
 	}
-	
+
 	t.stopped = true
 	return true
 }

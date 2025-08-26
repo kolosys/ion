@@ -31,12 +31,12 @@ type Pool struct {
 	obs *shared.Observability
 
 	// Lifecycle management
-	baseCtx    context.Context
-	cancel     context.CancelFunc
-	closed     chan struct{}
-	draining   atomic.Bool
-	closeOnce  sync.Once
-	drainOnce  sync.Once
+	baseCtx   context.Context
+	cancel    context.CancelFunc
+	closed    chan struct{}
+	draining  atomic.Bool
+	closeOnce sync.Once
+	drainOnce sync.Once
 
 	// Task management
 	taskCh   chan taskSubmission
@@ -58,12 +58,12 @@ type taskSubmission struct {
 
 // PoolMetrics holds runtime metrics for the pool
 type PoolMetrics struct {
-	Size      int     // configured pool size
-	Queued    int64   // current queue length
-	Running   int64   // currently running tasks
-	Completed uint64  // total completed tasks
-	Failed    uint64  // total failed tasks
-	Panicked  uint64  // total panicked tasks
+	Size      int    // configured pool size
+	Queued    int64  // current queue length
+	Running   int64  // currently running tasks
+	Completed uint64 // total completed tasks
+	Failed    uint64 // total failed tasks
+	Panicked  uint64 // total panicked tasks
 }
 
 // Option configures pool behavior

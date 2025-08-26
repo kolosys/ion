@@ -80,9 +80,9 @@ func ExampleNewLeakyBucket() {
 
 func ExampleRate() {
 	// Different ways to create rates
-	rate1 := ratelimit.PerSecond(100)          // 100 per second
-	rate2 := ratelimit.PerMinute(60)           // 1 per second
-	rate3 := ratelimit.Per(5, 2*time.Second)   // 2.5 per second
+	rate1 := ratelimit.PerSecond(100)        // 100 per second
+	rate2 := ratelimit.PerMinute(60)         // 1 per second
+	rate3 := ratelimit.Per(5, 2*time.Second) // 2.5 per second
 
 	fmt.Printf("PerSecond(100): %s\n", rate1)
 	fmt.Printf("PerMinute(60): %s\n", rate2)

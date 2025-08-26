@@ -19,10 +19,10 @@ type LeakyBucket struct {
 	cfg      *config
 
 	// State
-	mu           sync.Mutex
-	level        float64 // Current level in the bucket
-	lastLeak     time.Time
-	initialized  bool
+	mu          sync.Mutex
+	level       float64 // Current level in the bucket
+	lastLeak    time.Time
+	initialized bool
 }
 
 // NewLeakyBucket creates a new leaky bucket rate limiter.
@@ -112,7 +112,7 @@ func (lb *LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	needed := lb.level + float64(n) - float64(lb.capacity)
 	var waitDuration time.Duration
 	if needed > 0 && lb.rate.TokensPerSec > 0 {
-		waitDuration = time.Duration(needed/lb.rate.TokensPerSec*float64(time.Second))
+		waitDuration = time.Duration(needed / lb.rate.TokensPerSec * float64(time.Second))
 	} else if lb.rate.TokensPerSec <= 0 {
 		// Rate is zero, bucket never leaks
 		lb.mu.Unlock()

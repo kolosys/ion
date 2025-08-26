@@ -41,12 +41,12 @@ func (s *weightedSemaphore) TryAcquire(n int64) bool {
 	}
 
 	success := s.tryAcquireFast(n)
-	
+
 	result := "denied"
 	if success {
 		result = "success"
 	}
-	
+
 	s.obs.Metrics.Inc("ion_semaphore_acquisitions_total",
 		"semaphore_name", s.name, "result", result)
 
@@ -106,7 +106,7 @@ func (s *weightedSemaphore) acquireSlow(ctx context.Context, n int64) error {
 	)
 
 	start := time.Now()
-	
+
 	// Wait for either ready signal or context cancellation
 	select {
 	case <-w.ready:
@@ -170,7 +170,7 @@ func (s *weightedSemaphore) notifyWaiters() {
 		if s.current >= w.weight {
 			s.current -= w.weight
 			w.acquired = true
-			
+
 			// Signal the waiter (non-blocking)
 			select {
 			case w.ready <- struct{}{}:

@@ -149,7 +149,7 @@ func BenchmarkHighContention(b *testing.B) {
 		now := time.Now()
 
 		b.ResetTimer()
-		
+
 		var wg sync.WaitGroup
 		for i := 0; i < numGoroutines; i++ {
 			wg.Add(1)
@@ -168,7 +168,7 @@ func BenchmarkHighContention(b *testing.B) {
 		now := time.Now()
 
 		b.ResetTimer()
-		
+
 		var wg sync.WaitGroup
 		for i := 0; i < numGoroutines; i++ {
 			wg.Add(1)

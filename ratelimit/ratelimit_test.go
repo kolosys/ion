@@ -65,7 +65,7 @@ func TestTokenBucketAllowN(t *testing.T) {
 	t.Run("initial burst available", func(t *testing.T) {
 		clock := newTestClock(time.Now())
 		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
-		
+
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow initial burst")
 		}
@@ -77,19 +77,19 @@ func TestTokenBucketAllowN(t *testing.T) {
 	t.Run("refill over time", func(t *testing.T) {
 		clock := newTestClock(time.Now())
 		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
-		
+
 		// Use all initial tokens
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow initial burst")
 		}
-		
+
 		// Advance time by 1 second to add 10 tokens (limited to 5 by burst)
 		clock.Advance(time.Second)
-		
+
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow 5 tokens after refill")
 		}
-		
+
 		// Should have 0 tokens remaining after using all refilled tokens
 		if tb.AllowN(clock.Now(), 1) {
 			t.Error("should not have tokens after using all")
@@ -99,7 +99,7 @@ func TestTokenBucketAllowN(t *testing.T) {
 	t.Run("zero and negative requests", func(t *testing.T) {
 		clock := newTestClock(time.Now())
 		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
-		
+
 		if !tb.AllowN(clock.Now(), 0) {
 			t.Error("should allow 0 tokens")
 		}
@@ -133,7 +133,7 @@ func TestTokenBucketWaitN(t *testing.T) {
 		}()
 
 		// Advance time to add tokens
-		time.Sleep(10 * time.Millisecond) // Let goroutine start
+		time.Sleep(10 * time.Millisecond)     // Let goroutine start
 		clock.Advance(100 * time.Millisecond) // Add 1 token
 
 		select {
@@ -215,11 +215,11 @@ func TestLeakyBucketAllowN(t *testing.T) {
 	t.Run("leak over time", func(t *testing.T) {
 		// Advance time by 0.5 second to leak 5 requests
 		clock.Advance(500 * time.Millisecond)
-		
+
 		if !lb.AllowN(clock.Now(), 5) {
 			t.Error("should allow 5 requests after leak")
 		}
-		
+
 		if lb.AllowN(clock.Now(), 1) {
 			t.Error("should not allow more requests")
 		}
@@ -258,7 +258,7 @@ func TestLeakyBucketWaitN(t *testing.T) {
 		}()
 
 		// Advance time to create space
-		time.Sleep(10 * time.Millisecond) // Let goroutine start
+		time.Sleep(10 * time.Millisecond)     // Let goroutine start
 		clock.Advance(100 * time.Millisecond) // Leak 1 request
 
 		select {

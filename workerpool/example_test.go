@@ -30,7 +30,7 @@ func ExamplePool() {
 	time.Sleep(100 * time.Millisecond)
 
 	fmt.Printf("Completed tasks: %d", pool.Metrics().Completed)
-	// Output: 
+	// Output:
 	// Task executed
 	// Completed tasks: 1
 }
@@ -83,7 +83,7 @@ func ExamplePool_Drain() {
 	if err := pool.Drain(context.Background()); err != nil {
 		log.Printf("Drain failed: %v", err)
 	}
-	
+
 	// Wait for all tasks and then print in order
 	wg.Wait()
 	mu.Lock()
@@ -94,6 +94,6 @@ func ExamplePool_Drain() {
 	fmt.Println("All tasks finished")
 	// Output:
 	// Task completed
-	// Task completed  
+	// Task completed
 	// All tasks finished
 }

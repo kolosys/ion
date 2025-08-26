@@ -77,7 +77,7 @@ func (p *Pool) Drain(ctx context.Context) error {
 					// Queue is empty and no tasks running, safe to close
 					closeCtx, cancel := context.WithTimeout(context.Background(), p.drainTimeout)
 					defer cancel()
-					
+
 					err = p.Close(closeCtx)
 					p.obs.Logger.Info("workerpool drained successfully", "pool", p.name)
 					return

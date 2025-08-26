@@ -14,15 +14,15 @@ import (
 // If no tokens are available, requests must wait or are denied.
 type TokenBucket struct {
 	// Configuration
-	rate     Rate
-	burst    int
-	cfg      *config
+	rate  Rate
+	burst int
+	cfg   *config
 
 	// State
-	mu           sync.Mutex
-	tokens       float64
-	lastRefill   time.Time
-	initialized  bool
+	mu          sync.Mutex
+	tokens      float64
+	lastRefill  time.Time
+	initialized bool
 }
 
 // NewTokenBucket creates a new token bucket rate limiter.
@@ -111,7 +111,7 @@ func (tb *TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	deficit := float64(n) - tb.tokens
 	var waitDuration time.Duration
 	if tb.rate.TokensPerSec > 0 {
-		waitDuration = time.Duration(deficit/tb.rate.TokensPerSec*float64(time.Second))
+		waitDuration = time.Duration(deficit / tb.rate.TokensPerSec * float64(time.Second))
 	} else {
 		// Rate is zero, wait indefinitely
 		tb.mu.Unlock()

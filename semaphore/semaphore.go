@@ -58,26 +58,26 @@ type Semaphore interface {
 // weightedSemaphore implements the Semaphore interface with weighted permits and fairness
 type weightedSemaphore struct {
 	// Configuration
-	name         string
-	capacity     int64
-	fairness     Fairness
+	name           string
+	capacity       int64
+	fairness       Fairness
 	acquireTimeout time.Duration
 
 	// Observability
 	obs *shared.Observability
 
 	// Synchronization
-	mu       sync.Mutex
-	current  int64
-	waiters  waiterQueue
-	closed   bool
+	mu      sync.Mutex
+	current int64
+	waiters waiterQueue
+	closed  bool
 }
 
 // waiter represents a goroutine waiting to acquire permits
 type waiter struct {
-	weight  int64
-	ready   chan struct{}
-	ctx     context.Context
+	weight   int64
+	ready    chan struct{}
+	ctx      context.Context
 	acquired bool
 }
 
@@ -99,7 +99,7 @@ func (q *waiterQueue) popReady(available int64) *waiter {
 	}
 
 	var index int = -1
-	
+
 	switch q.fairness {
 	case FIFO:
 		// Find first waiter that can be satisfied

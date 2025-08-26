@@ -172,10 +172,10 @@ func TestTrySubmit(t *testing.T) {
 		// Use a channel to control when the blocking task starts and stops
 		started := make(chan struct{})
 		block := make(chan struct{})
-		
+
 		blockingTask := func(ctx context.Context) error {
 			close(started)
-			<-block  // Block until we signal to continue
+			<-block // Block until we signal to continue
 			return nil
 		}
 
@@ -184,10 +184,10 @@ func TestTrySubmit(t *testing.T) {
 		if err1 != nil {
 			t.Fatalf("first submission should succeed: %v", err1)
 		}
-		
+
 		// Wait for first task to start
 		<-started
-		
+
 		// Submit second task to fill queue
 		quickTask := func(ctx context.Context) error { return nil }
 		err2 := pool.TrySubmit(quickTask)
@@ -205,7 +205,7 @@ func TestTrySubmit(t *testing.T) {
 		if !errors.As(err3, &poolErr) {
 			t.Errorf("expected PoolError, got %T", err3)
 		}
-		
+
 		// Unblock the first task to allow cleanup
 		close(block)
 	})

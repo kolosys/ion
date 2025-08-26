@@ -312,10 +312,10 @@ func TestFairness(t *testing.T) {
 				defer wg.Done()
 				started.Done() // Signal that this goroutine has started
 				started.Wait() // Wait for all goroutines to start
-				
+
 				// Add small delay to ensure consistent ordering
 				time.Sleep(time.Duration(id) * 10 * time.Millisecond)
-				
+
 				_ = sem.Acquire(context.Background(), 1)
 				mu.Lock()
 				results = append(results, id)
@@ -363,10 +363,10 @@ func TestFairness(t *testing.T) {
 				defer wg.Done()
 				started.Done() // Signal that this goroutine has started
 				started.Wait() // Wait for all goroutines to start
-				
+
 				// Add small delay to ensure consistent ordering
 				time.Sleep(time.Duration(id) * 10 * time.Millisecond)
-				
+
 				_ = sem.Acquire(context.Background(), 1)
 				mu.Lock()
 				results = append(results, id)
@@ -443,7 +443,7 @@ func TestConcurrency(t *testing.T) {
 			wg.Add(1)
 			go func(id int) {
 				defer wg.Done()
-				
+
 				if id%2 == 0 {
 					// Use Acquire
 					ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -467,7 +467,7 @@ func TestConcurrency(t *testing.T) {
 		wg.Wait()
 
 		total := acquireSuccess.Load() + tryAcquireSuccess.Load()
-		t.Logf("Acquire successes: %d, TryAcquire successes: %d, Total: %d", 
+		t.Logf("Acquire successes: %d, TryAcquire successes: %d, Total: %d",
 			acquireSuccess.Load(), tryAcquireSuccess.Load(), total)
 
 		// Should have some successes
