@@ -1,8 +1,8 @@
 # Site settings
 title: "Ion"
 description: "High-performance concurrency primitives for Go applications. Rate limiting, semaphores, and worker pools designed for production workloads."
-baseurl: "/"
-url: "https://ion.kolosys.com"
+baseurl: "/ion"
+url: "https://kolosys.com"
 
 # Repository
 repository: "kolosys/ion"
