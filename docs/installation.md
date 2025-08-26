@@ -25,17 +25,13 @@ Create a simple test file:
 package main
 
 import (
-    "context"
     "fmt"
     
-    "github.com/kolosys/ion/workerpool"
+    "github.com/kolosys/ion"
 )
 
 func main() {
-    pool := workerpool.New(2, 5)
-    defer pool.Close(context.Background())
-    
-    fmt.Println("Ion installed successfully!")
+    fmt.Println("ion installed successfully!")
 }
 ```
 
@@ -47,7 +43,7 @@ go run main.go
 
 ## Module integration
 
-Add Ion to your `go.mod`:
+Add to your `go.mod`:
 
 ```bash
 go mod init your-project
@@ -57,10 +53,5 @@ go get github.com/kolosys/ion@latest
 ## Import packages
 
 ```go
-import (
-    "github.com/kolosys/ion/workerpool"
-    "github.com/kolosys/ion/ratelimit"  
-    "github.com/kolosys/ion/semaphore"
-    "github.com/kolosys/ion/shared"
-)
+import "github.com/kolosys/ion"
 ```
