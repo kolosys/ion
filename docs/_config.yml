@@ -7,12 +7,13 @@ url: "https://kolosys.com"
 # Repository
 repository: "kolosys/ion"
 
-# Theme
-theme: minima
+# Theme - Using Kolosys Docs Theme
+remote_theme: kolosys/jeklyn-docs-theme
 plugins:
   - jekyll-feed
   - jekyll-sitemap
   - jekyll-seo-tag
+  - jekyll-remote-theme
 
 # Build settings
 markdown: kramdown
@@ -21,15 +22,49 @@ kramdown:
   input: GFM
   syntax_highlighter: rouge
 
-# Navigation
-header_pages:
-  - index.md
-  - getting-started.md
-  - components.md
-  - examples.md
-  - api-reference.md
-  - benchmarks.md
-  - contributing.md
+# Navigation structure for Ion
+nav_sections:
+  - title: "Getting Started"
+    items:
+      - title: "Introduction"
+        url: /
+      - title: "Installation"
+        url: /getting-started/
+      - title: "Quick Start"
+        url: /getting-started/#quick-start
+
+  - title: "Components"
+    items:
+      - title: "Rate Limiting"
+        url: /components/#rate-limiting
+        children:
+          - title: "Token Bucket"
+            url: /ratelimit/tokenbucket/
+          - title: "Leaky Bucket"
+            url: /ratelimit/leakybucket/
+      - title: "Semaphores"
+        url: /components/#semaphores
+        children:
+          - title: "Weighted Semaphore"
+            url: /semaphore/weighted/
+      - title: "Worker Pools"
+        url: /components/#worker-pools
+        children:
+          - title: "Pool Management"
+            url: /workerpool/pool/
+          - title: "Task Submission"
+            url: /workerpool/submit/
+
+  - title: "Reference"
+    items:
+      - title: "API Reference"
+        url: /api-reference/
+      - title: "Examples"
+        url: /examples/
+      - title: "Benchmarks"
+        url: /benchmarks/
+      - title: "Contributing"
+        url: /contributing/
 
 # Collections
 collections:
@@ -50,16 +85,98 @@ defaults:
     values:
       layout: "component"
 
-# Social
+# Branding
+logo: /ion/assets/images/kolosys-ion.png
 github_username: kolosys
 twitter_username: kolosys
 
+# Hero section
+hero_buttons:
+  - text: "Get Started"
+    url: "/getting-started/"
+    type: "primary"
+  - text: "View on GitHub"
+    url: "https://github.com/kolosys/ion"
+    type: "outline"
+  - text: "API Reference"
+    url: "/api-reference/"
+    type: "secondary"
+
+# Features for Ion
+features:
+  - title: "Rate Limiting"
+    description: "Token bucket and leaky bucket algorithms for controlling request rates with configurable burst handling."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      </svg>
+    link: /components/#rate-limiting
+
+  - title: "Semaphores"
+    description: "Weighted semaphores for resource management and access control with context-aware acquisition."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+    link: /components/#semaphores
+
+  - title: "Worker Pools"
+    description: "Efficient worker pool implementation for concurrent task processing with graceful shutdown."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+      </svg>
+    link: /components/#worker-pools
+
+  - title: "Context-Aware"
+    description: "All components respect Go's context cancellation patterns for graceful shutdown and timeouts."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12,18.5C15.5,18.5 19.31,16.69 21.58,12C19.31,7.31 15.5,5.5 12,5.5C8.5,5.5 4.69,7.31 2.42,12C4.69,16.69 8.5,18.5 12,18.5M12,17C9.24,17 6.81,15.35 5.19,12C6.81,8.65 9.24,7 12,7C14.76,7 17.19,8.65 18.81,12C17.19,15.35 14.76,17 12,17M12,8.5A3.5,3.5 0 0,0 8.5,12A3.5,3.5 0 0,0 12,15.5A3.5,3.5 0 0,0 15.5,12A3.5,3.5 0 0,0 12,8.5M12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14Z"/>
+      </svg>
+    link: /getting-started/#context-usage
+
+  - title: "Zero Dependencies"
+    description: "Built using only Go's standard library with no external dependencies for maximum compatibility."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9,10L7.5,8.5L6,10V7H4V10L2.5,8.5L1,10L3,12L1,14L2.5,15.5L4,14V17H6V14L7.5,15.5L9,14L7,12L9,10M15,10V7H17V10L18.5,8.5L20,10L22,12L20,14L18.5,15.5L17,14V17H15V14L13.5,15.5L12,14L14,12L12,10L13.5,8.5L15,10M11,9V7H13V9H11M11,15V17H13V15H11Z"/>
+      </svg>
+    link: /getting-started/#installation
+
+  - title: "Production Ready"
+    description: "Battle-tested in production environments with comprehensive testing and benchmarks."
+    icon: |
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M23,12L20.56,9.22L20.9,5.54L17.29,4.72L15.4,1.54L12,3L8.6,1.54L6.71,4.72L3.1,5.53L3.44,9.21L1,12L3.44,14.78L3.1,18.47L6.71,19.29L8.6,22.47L12,21L15.4,22.46L17.29,19.28L20.9,18.46L20.56,14.78L23,12M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
+      </svg>
+    link: /benchmarks/
+
+# Footer
+footer_links:
+  - title: "Documentation"
+    url: "/"
+  - title: "GitHub"
+    url: "https://github.com/kolosys/ion"
+    external: true
+  - title: "Issues"
+    url: "https://github.com/kolosys/ion/issues"
+    external: true
+  - title: "Benchmarks"
+    url: "/benchmarks/"
+
 # SEO
-logo: /ion/assets/images/kolosys-ion.png
 social:
   name: Kolosys
   links:
     - https://github.com/kolosys
+
+# Theme settings
+show_sidebar: true
+show_edit_link: true
+
+# Custom copyright
+copyright: "© 2024 Kolosys. All rights reserved."
 
 # Exclude from processing
 exclude:
