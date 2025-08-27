@@ -2,8 +2,6 @@
 
 ## Basic Usage
 
-The examples below demonstrate the core rate limiting functionality including token bucket, leaky bucket, and multi-tier rate limiting.
-
 ```go
 // Package main demonstrates basic usage of the ion ratelimit package.
 package main
@@ -24,7 +22,7 @@ func main() {
 	// Example 1: Token Bucket Basic Usage
 	tokenBucketExample()
 
-	// Example 2: Leaky Bucket Basic Usage
+	// Example 2: Leaky Bucket Basic Usage  
 	leakyBucketExample()
 
 	// Example 3: API Client Rate Limiting
@@ -36,8 +34,20 @@ func main() {
 	// Example 5: Burst vs Sustained Traffic
 	burstVsSustainedExample()
 
-	// Example 6: Multi-Tier Rate Limiting
-	multiTierExample()
+	// Example 6: Basic Multi-Tier Configuration
+	basicMultiTierExample()
+
+	// Example 7: API Gateway with Route Patterns
+	apiGatewayExample()
+
+	// Example 8: Resource-Based Rate Limiting
+	resourceBasedExample()
+
+	// Example 9: Header-Based Rate Limit Updates
+	headerUpdateExample()
+
+	// Example 10: Concurrent Multi-Tier Access
+	concurrentAccessExample()
 }
 
 func tokenBucketExample() {
@@ -138,7 +148,7 @@ func queueProcessingExample() {
 		"Process payment", "Update inventory", "Log analytics",
 	}
 
-	fmt.Printf("  Processing %d messages at 2/second (capacity: %d)\n",
+	fmt.Printf("  Processing %d messages at 2/second (capacity: %d)\n", 
 		len(messages), processor.Capacity())
 
 	accepted := 0
@@ -189,126 +199,6 @@ func burstVsSustainedExample() {
 
 	fmt.Printf("  Token bucket tokens remaining: %.1f\n", tokenBucket.Tokens())
 	fmt.Printf("  Leaky bucket level: %.1f\n", leakyBucket.Level())
-}
-
-## Multi-Tier Rate Limiting
-
-The multi-tier rate limiter provides sophisticated rate limiting capabilities for API gateways and complex applications. It supports:
-
-- **Global limits**: Overall rate limits across all requests
-- **Route limits**: Per-endpoint rate limiting with pattern matching
-- **Resource limits**: Per-resource (e.g., per-organization) rate limiting
-- **Concurrent safety**: Thread-safe operations
-- **Metrics**: Comprehensive observability
-
-### Key Features
-
-1. **Route Pattern Matching**: Define specific rate limits for different API endpoints
-2. **Resource Isolation**: Different resources (organizations, users, etc.) get separate rate limit buckets
-3. **Header Integration**: Support for external API rate limit headers
-4. **Metrics Collection**: Track limit hits, wait times, and active buckets
-
-func multiTierExample() {
-	fmt.Println("\n6. Multi-Tier Rate Limiting:")
-
-	// Create a multi-tier rate limiter configuration
-	config := ratelimit.DefaultMultiTierConfig()
-	config.GlobalRate = ratelimit.PerSecond(20)      // Global: 20 req/sec
-	config.GlobalBurst = 20
-	config.DefaultRouteRate = ratelimit.PerSecond(10) // Default route: 10 req/sec
-	config.DefaultRouteBurst = 10
-	config.DefaultResourceRate = ratelimit.PerSecond(5) // Per-resource: 5 req/sec
-	config.DefaultResourceBurst = 5
-
-	// Add specific route patterns
-	config.RoutePatterns = map[string]ratelimit.RouteConfig{
-		"POST:/api/v1/users": {
-			Rate:  ratelimit.PerSecond(2), // User creation: 2 req/sec
-			Burst: 2,
-		},
-		"GET:/api/v1/users/{id}": {
-			Rate:  ratelimit.PerSecond(15), // User lookup: 15 req/sec
-			Burst: 15,
-		},
-	}
-
-	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("api-gateway"))
-
-	// Test different types of requests
-	testRequests := []struct {
-		name     string
-		method   string
-		endpoint string
-		resource string
-	}{
-		{"User Creation", "POST", "/api/v1/users", ""},
-		{"User Lookup", "GET", "/api/v1/users/123", ""},
-		{"Data Query", "GET", "/api/v1/data", "org123"},
-		{"Data Query (diff org)", "GET", "/api/v1/data", "org456"},
-	}
-
-	fmt.Println("  Testing different request types:")
-	for _, test := range testRequests {
-		req := &ratelimit.Request{
-			Method:     test.method,
-			Endpoint:   test.endpoint,
-			ResourceID: test.resource,
-			Context:    context.Background(),
-		}
-
-		allowed := 0
-		for i := 0; i < 5; i++ {
-			if limiter.Allow(req) {
-				allowed++
-			}
-		}
-
-		fmt.Printf("    %s: %d/5 allowed\n", test.name, allowed)
-	}
-
-	// Test concurrent access
-	fmt.Println("\n  Testing concurrent access:")
-	var wg sync.WaitGroup
-	results := make(chan string, 20)
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			req := &ratelimit.Request{
-				Method:   "GET",
-				Endpoint: "/api/v1/users/123",
-				Context:  context.Background(),
-			}
-			if limiter.Allow(req) {
-				results <- fmt.Sprintf("Request %d: allowed", id)
-			} else {
-				results <- fmt.Sprintf("Request %d: denied", id)
-			}
-		}(i)
-	}
-
-	wg.Wait()
-	close(results)
-
-	allowed := 0
-	for result := range results {
-		fmt.Printf("    %s\n", result)
-		if result[len(result)-7:] == "allowed" {
-			allowed++
-		}
-	}
-
-	fmt.Printf("  Concurrent results: %d/10 allowed\n", allowed)
-
-	// Show metrics
-	metrics := limiter.GetMetrics()
-	fmt.Printf("\n  Metrics:\n")
-	fmt.Printf("    Total requests: %d\n", metrics.TotalRequests)
-	fmt.Printf("    Global limit hits: %d\n", metrics.GlobalLimitHits)
-	fmt.Printf("    Route limit hits: %d\n", metrics.RouteLimitHits)
-	fmt.Printf("    Resource limit hits: %d\n", metrics.ResourceLimitHits)
-	fmt.Printf("    Active buckets: %d\n", metrics.BucketsActive)
 }
 
 ```

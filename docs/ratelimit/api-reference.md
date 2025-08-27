@@ -128,6 +128,257 @@ type Limiter interface {
 	WaitN(ctx context.Context, n int) error
 }
 ```
+### MultiTierConfig
+
+MultiTierConfig holds configuration for multi-tier rate limiting.
+
+
+```go
+type MultiTierConfig struct {
+	// Global rate limit configuration
+	GlobalRate  Rate
+	GlobalBurst int
+
+	// Default rate limits for routes and resources
+	DefaultRouteRate     Rate
+	DefaultRouteBurst    int
+	DefaultResourceRate  Rate
+	DefaultResourceBurst int
+
+	// Queue configuration for request management
+	QueueSize        int
+	EnablePreemptive bool
+
+	// Bucket management
+	EnableBucketMapping bool
+	BucketTTL           time.Duration
+
+	// Route pattern matching
+	RoutePatterns map[string]RouteConfig
+}
+```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `GlobalRate` | `Rate` | Global rate limit configuration |
+| `GlobalBurst` | `int` |  |
+| `DefaultRouteRate` | `Rate` | Default rate limits for routes and resources |
+| `DefaultRouteBurst` | `int` |  |
+| `DefaultResourceRate` | `Rate` |  |
+| `DefaultResourceBurst` | `int` |  |
+| `QueueSize` | `int` | Queue configuration for request management |
+| `EnablePreemptive` | `bool` |  |
+| `EnableBucketMapping` | `bool` | Bucket management |
+| `BucketTTL` | `time.Duration` |  |
+| `RoutePatterns` | `map[string]RouteConfig` | Route pattern matching |
+### MultiTierLimiter
+
+MultiTierLimiter implements a sophisticated multi-tier rate limiting system.
+It supports global, per-route, and per-resource rate limiting with intelligent
+bucket management and flexible API compatibility.
+
+
+```go
+type MultiTierLimiter struct {
+	mu sync.RWMutex
+
+	// Global limiter shared across all requests
+	global Limiter
+
+	// Route limiters for specific API endpoints
+	routes sync.Map // map[string]Limiter
+
+	// Resource limiters for specific resources (organizations, projects, etc.)
+	resources sync.Map // map[string]Limiter
+
+	// Bucket mapping for API-style rate limit buckets
+	bucketMap sync.Map // map[string]string
+
+	// Configuration
+	config *MultiTierConfig
+	cfg    *config
+
+	// Metrics and observability
+	metrics *MultiTierMetrics
+}
+```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mu` | `sync.RWMutex` |  |
+| `global` | `Limiter` | Global limiter shared across all requests |
+| `routes` | `sync.Map` | Route limiters for specific API endpoints |
+| `resources` | `sync.Map` | Resource limiters for specific resources (organizations, projects, etc.) |
+| `bucketMap` | `sync.Map` | Bucket mapping for API-style rate limit buckets |
+| `config` | `*MultiTierConfig` | Configuration |
+| `cfg` | `*config` |  |
+| `metrics` | `*MultiTierMetrics` | Metrics and observability |
+#### Methods
+##### Allow
+
+Allow checks if a request is allowed without blocking.
+
+
+```go
+func (mtl *MultiTierLimiter) Allow(req *Request) bool
+```
+##### AllowN
+
+AllowN checks if n requests are allowed without blocking.
+
+
+```go
+func (mtl *MultiTierLimiter) AllowN(req *Request, n int) bool
+```
+##### GetMetrics
+
+GetMetrics returns current rate limiting metrics.
+
+
+```go
+func (mtl *MultiTierLimiter) GetMetrics() *MultiTierMetrics
+```
+##### Reset
+
+Reset resets all rate limit buckets (useful for testing).
+
+
+```go
+func (mtl *MultiTierLimiter) Reset()
+```
+##### UpdateRateLimitFromHeaders
+
+UpdateRateLimitFromHeaders updates rate limit information from API response headers.
+This is designed for APIs that provide rate limit information in response headers.
+
+
+```go
+func (mtl *MultiTierLimiter) UpdateRateLimitFromHeaders(req *Request, headers map[string]string) error
+```
+##### Wait
+
+Wait blocks until the request is allowed or context is canceled.
+
+
+```go
+func (mtl *MultiTierLimiter) Wait(req *Request) error
+```
+##### WaitN
+
+WaitN blocks until n requests are allowed or context is canceled.
+
+
+```go
+func (mtl *MultiTierLimiter) WaitN(req *Request, n int) error
+```
+##### findRouteConfig
+
+findRouteConfig finds the configuration for a specific route.
+
+
+```go
+func (mtl *MultiTierLimiter) findRouteConfig(method, endpoint string) RouteConfig
+```
+##### generateRouteKey
+
+generateRouteKey creates a unique key for route identification.
+
+
+```go
+func (mtl *MultiTierLimiter) generateRouteKey(req *Request) string
+```
+##### getOrCreateRouteLimiter
+
+getOrCreateRouteLimiter gets or creates a route-specific limiter.
+
+
+```go
+func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter
+```
+##### getResourceLimiter
+
+getResourceLimiter gets a resource-specific limiter if applicable.
+
+
+```go
+func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter
+```
+##### matchesPattern
+
+matchesPattern checks if an endpoint matches a route pattern.
+
+
+```go
+func (mtl *MultiTierLimiter) matchesPattern(endpoint, pattern string) bool
+```
+##### normalizeRoute
+
+normalizeRoute normalizes an API route for pattern matching.
+
+
+```go
+func (mtl *MultiTierLimiter) normalizeRoute(method, endpoint string) string
+```
+##### parseFloatHeader
+
+parseFloatHeader parses a float header value.
+
+
+```go
+func (mtl *MultiTierLimiter) parseFloatHeader(headers map[string]string, key string, defaultValue float64) float64
+```
+##### parseIntHeader
+
+parseIntHeader parses an integer header value.
+
+
+```go
+func (mtl *MultiTierLimiter) parseIntHeader(headers map[string]string, key string, defaultValue int) int
+```
+##### updateMetrics
+
+updateMetrics safely updates metrics using a function.
+
+
+```go
+func (mtl *MultiTierLimiter) updateMetrics(fn func(*MultiTierMetrics))
+```
+### MultiTierMetrics
+
+MultiTierMetrics tracks metrics for multi-tier rate limiting.
+
+
+```go
+type MultiTierMetrics struct {
+	mu sync.RWMutex
+
+	TotalRequests     int64
+	GlobalLimitHits   int64
+	RouteLimitHits    int64
+	ResourceLimitHits int64
+	QueuedRequests    int64
+	DroppedRequests   int64
+	AvgWaitTime       time.Duration
+	MaxWaitTime       time.Duration
+	BucketsActive     int64
+}
+```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mu` | `sync.RWMutex` |  |
+| `TotalRequests` | `int64` |  |
+| `GlobalLimitHits` | `int64` |  |
+| `RouteLimitHits` | `int64` |  |
+| `ResourceLimitHits` | `int64` |  |
+| `QueuedRequests` | `int64` |  |
+| `DroppedRequests` | `int64` |  |
+| `AvgWaitTime` | `time.Duration` |  |
+| `MaxWaitTime` | `time.Duration` |  |
+| `BucketsActive` | `int64` |  |
 ### Option
 
 Option configures rate limiter behavior.
@@ -165,6 +416,62 @@ String returns a string representation of the rate.
 ```go
 func (r Rate) String() string
 ```
+### Request
+
+Request represents a request for rate limiting evaluation.
+
+
+```go
+type Request struct {
+	// Route information
+	Method   string
+	Endpoint string
+
+	// Resource identifiers (generic - applications define their own)
+	ResourceID    string // Primary resource identifier
+	SubResourceID string // Secondary resource identifier
+	UserID        string // User/actor identifier
+
+	// Major parameters for bucket identification
+	MajorParameters map[string]string
+
+	// Request metadata
+	Priority int
+	Context  context.Context
+}
+```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Method` | `string` | Route information |
+| `Endpoint` | `string` |  |
+| `ResourceID` | `string` | Resource identifiers (generic - applications define their own) |
+| `SubResourceID` | `string` | Secondary resource identifier |
+| `UserID` | `string` | User/actor identifier |
+| `MajorParameters` | `map[string]string` | Major parameters for bucket identification |
+| `Priority` | `int` | Request metadata |
+| `Context` | `context.Context` |  |
+### RouteConfig
+
+RouteConfig defines rate limiting for specific route patterns.
+
+
+```go
+type RouteConfig struct {
+	Rate  Rate
+	Burst int
+	// Major parameters that affect rate limiting (e.g., org_id, project_id)
+	MajorParameters []string
+}
+```
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Rate` | `Rate` |  |
+| `Burst` | `int` |  |
+| `MajorParameters` | `[]string` | Major parameters that affect rate limiting (e.g., org_id, project_id) |
 ### Timer
 
 Timer represents a timer that can be stopped.
@@ -336,91 +643,4 @@ type realTimer struct{ *time.Timer }
 
 ```go
 func (t *realTimer) Stop() bool
-```
-### testClock
-
-testClock is a controllable clock implementation for testing.
-
-
-```go
-type testClock struct {
-	mu     sync.Mutex
-	now    time.Time
-	timers []*testTimer
-}
-```
-#### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `mu` | `sync.Mutex` |  |
-| `now` | `time.Time` |  |
-| `timers` | `[]*testTimer` |  |
-#### Methods
-##### Advance
-
-Advance advances the clock by the given duration and fires any timers.
-
-
-```go
-func (c *testClock) Advance(d time.Duration)
-```
-##### AfterFunc
-
-
-
-```go
-func (c *testClock) AfterFunc(d time.Duration, f func()) Timer
-```
-##### Now
-
-
-
-```go
-func (c *testClock) Now() time.Time
-```
-##### Set
-
-Set sets the clock to a specific time.
-
-
-```go
-func (c *testClock) Set(t time.Time)
-```
-##### Sleep
-
-
-
-```go
-func (c *testClock) Sleep(d time.Duration)
-```
-### testTimer
-
-
-
-```go
-type testTimer struct {
-	clock    *testClock
-	deadline time.Time
-	fn       func()
-	stopped  bool
-	mu       sync.Mutex
-}
-```
-#### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `clock` | `*testClock` |  |
-| `deadline` | `time.Time` |  |
-| `fn` | `func()` |  |
-| `stopped` | `bool` |  |
-| `mu` | `sync.Mutex` |  |
-#### Methods
-##### Stop
-
-
-
-```go
-func (t *testTimer) Stop() bool
 ```

@@ -92,6 +92,30 @@ to continue being processed until the queue is empty.
 ```go
 func (p *Pool) Drain(ctx context.Context) error
 ```
+##### GetName
+
+GetName returns the name of the pool
+
+
+```go
+func (p *Pool) GetName() string
+```
+##### GetQueueSize
+
+GetQueueSize returns the queue size of the pool
+
+
+```go
+func (p *Pool) GetQueueSize() int
+```
+##### GetSize
+
+GetSize returns the size of the pool
+
+
+```go
+func (p *Pool) GetSize() int
+```
 ##### IsClosed
 
 IsClosed returns true if the pool has been closed or is in the process of closing
