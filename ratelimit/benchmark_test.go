@@ -1,4 +1,4 @@
-package ratelimit
+package ratelimit_test
 
 import (
 	"context"
@@ -6,10 +6,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/kolosys/ion/ratelimit"
 )
 
 func BenchmarkTokenBucketAllowN(b *testing.B) {
-	tb := NewTokenBucket(PerSecond(1000), 100)
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), 100)
 	now := time.Now()
 
 	b.ResetTimer()
@@ -21,7 +23,7 @@ func BenchmarkTokenBucketAllowN(b *testing.B) {
 }
 
 func BenchmarkTokenBucketAllowN_Uncontended(b *testing.B) {
-	tb := NewTokenBucket(PerSecond(1000), 1000) // Large burst to avoid contention
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), 1000) // Large burst to avoid contention
 	now := time.Now()
 
 	b.ResetTimer()
@@ -31,7 +33,7 @@ func BenchmarkTokenBucketAllowN_Uncontended(b *testing.B) {
 }
 
 func BenchmarkTokenBucketAllowN_WithRefill(b *testing.B) {
-	tb := NewTokenBucket(PerSecond(1000), 10)
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), 10)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -40,7 +42,7 @@ func BenchmarkTokenBucketAllowN_WithRefill(b *testing.B) {
 }
 
 func BenchmarkLeakyBucketAllowN(b *testing.B) {
-	lb := NewLeakyBucket(PerSecond(1000), 100)
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), 100)
 	now := time.Now()
 
 	b.ResetTimer()
@@ -52,7 +54,7 @@ func BenchmarkLeakyBucketAllowN(b *testing.B) {
 }
 
 func BenchmarkLeakyBucketAllowN_Uncontended(b *testing.B) {
-	lb := NewLeakyBucket(PerSecond(1000), 1000) // Large capacity
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), 1000) // Large capacity
 	now := time.Now()
 
 	b.ResetTimer()
@@ -62,7 +64,7 @@ func BenchmarkLeakyBucketAllowN_Uncontended(b *testing.B) {
 }
 
 func BenchmarkLeakyBucketAllowN_WithLeak(b *testing.B) {
-	lb := NewLeakyBucket(PerSecond(1000), 10)
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), 10)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -71,7 +73,7 @@ func BenchmarkLeakyBucketAllowN_WithLeak(b *testing.B) {
 }
 
 func BenchmarkTokenBucketWaitN(b *testing.B) {
-	tb := NewTokenBucket(PerSecond(10000), 1000) // High rate to minimize waiting
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10000), 1000) // High rate to minimize waiting
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -83,7 +85,7 @@ func BenchmarkTokenBucketWaitN(b *testing.B) {
 }
 
 func BenchmarkLeakyBucketWaitN(b *testing.B) {
-	lb := NewLeakyBucket(PerSecond(10000), 1000) // High rate, large capacity
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(10000), 1000) // High rate, large capacity
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -97,7 +99,7 @@ func BenchmarkLeakyBucketWaitN(b *testing.B) {
 // Benchmark comparing with golang.org/x/time/rate for reference
 func BenchmarkComparison_AllowN(b *testing.B) {
 	b.Run("TokenBucket", func(b *testing.B) {
-		tb := NewTokenBucket(PerSecond(1000), 100)
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), 100)
 		now := time.Now()
 
 		b.ResetTimer()
@@ -107,7 +109,7 @@ func BenchmarkComparison_AllowN(b *testing.B) {
 	})
 
 	b.Run("LeakyBucket", func(b *testing.B) {
-		lb := NewLeakyBucket(PerSecond(1000), 100)
+		lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), 100)
 		now := time.Now()
 
 		b.ResetTimer()
@@ -119,7 +121,7 @@ func BenchmarkComparison_AllowN(b *testing.B) {
 
 // Memory allocation benchmarks
 func BenchmarkTokenBucketAlloc(b *testing.B) {
-	tb := NewTokenBucket(PerSecond(1000), 100)
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), 100)
 	now := time.Now()
 
 	b.ReportAllocs()
@@ -130,7 +132,7 @@ func BenchmarkTokenBucketAlloc(b *testing.B) {
 }
 
 func BenchmarkLeakyBucketAlloc(b *testing.B) {
-	lb := NewLeakyBucket(PerSecond(1000), 100)
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), 100)
 	now := time.Now()
 
 	b.ReportAllocs()
@@ -145,7 +147,7 @@ func BenchmarkHighContention(b *testing.B) {
 	const numGoroutines = 100
 
 	b.Run("TokenBucket", func(b *testing.B) {
-		tb := NewTokenBucket(PerSecond(10000), 1000)
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10000), 1000)
 		now := time.Now()
 
 		b.ResetTimer()
@@ -164,7 +166,7 @@ func BenchmarkHighContention(b *testing.B) {
 	})
 
 	b.Run("LeakyBucket", func(b *testing.B) {
-		lb := NewLeakyBucket(PerSecond(10000), 1000)
+		lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(10000), 1000)
 		now := time.Now()
 
 		b.ResetTimer()
@@ -189,7 +191,7 @@ func BenchmarkScalability(b *testing.B) {
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("TokenBucket_Burst_%d", size), func(b *testing.B) {
-			tb := NewTokenBucket(PerSecond(1000), size)
+			tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(1000), size)
 			now := time.Now()
 
 			b.ResetTimer()
@@ -199,7 +201,7 @@ func BenchmarkScalability(b *testing.B) {
 		})
 
 		b.Run(fmt.Sprintf("LeakyBucket_Capacity_%d", size), func(b *testing.B) {
-			lb := NewLeakyBucket(PerSecond(1000), size)
+			lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(1000), size)
 			now := time.Now()
 
 			b.ResetTimer()

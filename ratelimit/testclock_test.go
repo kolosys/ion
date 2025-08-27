@@ -1,8 +1,10 @@
-package ratelimit
+package ratelimit_test
 
 import (
 	"sync"
 	"time"
+
+	"github.com/kolosys/ion/ratelimit"
 )
 
 // testClock is a controllable clock implementation for testing.
@@ -29,7 +31,7 @@ func (c *testClock) Sleep(d time.Duration) {
 	c.Advance(d)
 }
 
-func (c *testClock) AfterFunc(d time.Duration, f func()) Timer {
+func (c *testClock) AfterFunc(d time.Duration, f func()) ratelimit.Timer {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

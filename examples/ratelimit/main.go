@@ -28,6 +28,21 @@ func main() {
 
 	// Example 5: Burst vs Sustained Traffic
 	burstVsSustainedExample()
+
+	// Example 6: Basic Multi-Tier Configuration
+	basicMultiTierExample()
+
+	// Example 7: API Gateway with Route Patterns
+	apiGatewayExample()
+
+	// Example 8: Resource-Based Rate Limiting
+	resourceBasedExample()
+
+	// Example 9: Header-Based Rate Limit Updates
+	headerUpdateExample()
+
+	// Example 10: Concurrent Multi-Tier Access
+	concurrentAccessExample()
 }
 
 func tokenBucketExample() {

@@ -1,4 +1,4 @@
-package workerpool
+package workerpool_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kolosys/ion/shared"
+	"github.com/kolosys/ion/workerpool"
 )
 
 func TestNew(t *testing.T) {
@@ -17,7 +18,7 @@ func TestNew(t *testing.T) {
 		name      string
 		size      int
 		queueSize int
-		opts      []Option
+		opts      []workerpool.Option
 		wantSize  int
 	}{
 		{
@@ -36,9 +37,9 @@ func TestNew(t *testing.T) {
 			name:      "with options",
 			size:      3,
 			queueSize: 8,
-			opts: []Option{
-				WithName("test-pool"),
-				WithDrainTimeout(10 * time.Second),
+			opts: []workerpool.Option{
+				workerpool.WithName("test-pool"),
+				workerpool.WithDrainTimeout(10 * time.Second),
 			},
 			wantSize: 3,
 		},
@@ -46,14 +47,14 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pool := New(tt.size, tt.queueSize, tt.opts...)
+			pool := workerpool.New(tt.size, tt.queueSize, tt.opts...)
 			defer pool.Close(context.Background())
 
-			if pool.size != tt.wantSize {
-				t.Errorf("expected size %d, got %d", tt.wantSize, pool.size)
+			if pool.GetSize() != tt.wantSize {
+				t.Errorf("expected size %d, got %d", tt.wantSize, pool.GetSize())
 			}
-			if pool.queueSize != tt.queueSize {
-				t.Errorf("expected queueSize %d, got %d", tt.queueSize, pool.queueSize)
+			if pool.GetQueueSize() != tt.queueSize {
+				t.Errorf("expected queueSize %d, got %d", tt.queueSize, pool.GetQueueSize())
 			}
 		})
 	}
@@ -61,7 +62,7 @@ func TestNew(t *testing.T) {
 
 func TestSubmit(t *testing.T) {
 	t.Run("successful submission", func(t *testing.T) {
-		pool := New(2, 5, WithName("test-pool"))
+		pool := workerpool.New(2, 5, workerpool.WithName("test-pool"))
 		defer pool.Close(context.Background())
 
 		var executed atomic.Bool
@@ -84,7 +85,7 @@ func TestSubmit(t *testing.T) {
 	})
 
 	t.Run("nil task", func(t *testing.T) {
-		pool := New(1, 1)
+		pool := workerpool.New(1, 1)
 		defer pool.Close(context.Background())
 
 		err := pool.Submit(context.Background(), nil)
@@ -94,7 +95,7 @@ func TestSubmit(t *testing.T) {
 	})
 
 	t.Run("context cancellation", func(t *testing.T) {
-		pool := New(1, 0) // zero queue to force blocking
+		pool := workerpool.New(1, 0) // zero queue to force blocking
 		defer pool.Close(context.Background())
 
 		// Submit a long-running task to fill the single worker
@@ -124,7 +125,7 @@ func TestSubmit(t *testing.T) {
 	})
 
 	t.Run("closed pool", func(t *testing.T) {
-		pool := New(1, 1)
+		pool := workerpool.New(1, 1)
 		pool.Close(context.Background())
 
 		task := func(ctx context.Context) error { return nil }
@@ -143,7 +144,7 @@ func TestSubmit(t *testing.T) {
 
 func TestTrySubmit(t *testing.T) {
 	t.Run("successful submission", func(t *testing.T) {
-		pool := New(2, 5)
+		pool := workerpool.New(2, 5)
 		defer pool.Close(context.Background())
 
 		var executed atomic.Bool
@@ -166,7 +167,7 @@ func TestTrySubmit(t *testing.T) {
 	})
 
 	t.Run("queue full", func(t *testing.T) {
-		pool := New(1, 1)
+		pool := workerpool.New(1, 1)
 		defer pool.Close(context.Background())
 
 		// Use a channel to control when the blocking task starts and stops
@@ -213,7 +214,7 @@ func TestTrySubmit(t *testing.T) {
 
 func TestPoolLifecycle(t *testing.T) {
 	t.Run("close waits for running tasks", func(t *testing.T) {
-		pool := New(1, 0)
+		pool := workerpool.New(1, 0)
 
 		var taskStarted, taskFinished atomic.Bool
 		task := func(ctx context.Context) error {
@@ -250,7 +251,7 @@ func TestPoolLifecycle(t *testing.T) {
 	})
 
 	t.Run("drain waits for queue to empty", func(t *testing.T) {
-		pool := New(1, 2)
+		pool := workerpool.New(1, 2)
 
 		var completedTasks atomic.Int64
 		task := func(ctx context.Context) error {
@@ -285,7 +286,7 @@ func TestPoolLifecycle(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	pool := New(2, 3, WithName("metrics-test"))
+	pool := workerpool.New(2, 3, workerpool.WithName("metrics-test"))
 	defer pool.Close(context.Background())
 
 	metrics := pool.Metrics()
@@ -328,7 +329,7 @@ func TestTaskPanicRecovery(t *testing.T) {
 	var panicMutex sync.Mutex
 	var panicReceived bool
 
-	pool := New(1, 1, WithPanicRecovery(func(r any) {
+	pool := workerpool.New(1, 1, workerpool.WithPanicRecovery(func(r any) {
 		panicMutex.Lock()
 		panicValue = r
 		panicReceived = true

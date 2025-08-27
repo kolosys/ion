@@ -1,4 +1,4 @@
-package semaphore
+package semaphore_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kolosys/ion/semaphore"
 	"github.com/kolosys/ion/shared"
 )
 
@@ -15,7 +16,7 @@ func TestNewWeighted(t *testing.T) {
 	tests := []struct {
 		name      string
 		capacity  int64
-		opts      []Option
+		opts      []semaphore.Option
 		wantPanic bool
 	}{
 		{
@@ -29,10 +30,10 @@ func TestNewWeighted(t *testing.T) {
 		{
 			name:     "with options",
 			capacity: 5,
-			opts: []Option{
-				WithName("test-sem"),
-				WithFairness(LIFO),
-				WithAcquireTimeout(time.Second),
+			opts: []semaphore.Option{
+				semaphore.WithName("test-sem"),
+				semaphore.WithFairness(semaphore.LIFO),
+				semaphore.WithAcquireTimeout(time.Second),
 			},
 		},
 		{
@@ -58,7 +59,7 @@ func TestNewWeighted(t *testing.T) {
 				}
 			}()
 
-			sem := NewWeighted(tt.capacity, tt.opts...)
+			sem := semaphore.NewWeighted(tt.capacity, tt.opts...)
 			if !tt.wantPanic {
 				if sem.Current() != tt.capacity {
 					t.Errorf("expected current permits %d, got %d", tt.capacity, sem.Current())
@@ -70,7 +71,7 @@ func TestNewWeighted(t *testing.T) {
 
 func TestTryAcquire(t *testing.T) {
 	t.Run("successful acquisition", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		if !sem.TryAcquire(3) {
 			t.Error("should have acquired 3 permits")
@@ -90,7 +91,7 @@ func TestTryAcquire(t *testing.T) {
 	})
 
 	t.Run("insufficient permits", func(t *testing.T) {
-		sem := NewWeighted(3)
+		sem := semaphore.NewWeighted(3)
 
 		if sem.TryAcquire(5) {
 			t.Error("should not have acquired 5 permits when only 3 available")
@@ -102,7 +103,7 @@ func TestTryAcquire(t *testing.T) {
 	})
 
 	t.Run("invalid weight", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		if sem.TryAcquire(0) {
 			t.Error("should not acquire 0 permits")
@@ -114,7 +115,7 @@ func TestTryAcquire(t *testing.T) {
 	})
 
 	t.Run("weight exceeds capacity", func(t *testing.T) {
-		sem := NewWeighted(3)
+		sem := semaphore.NewWeighted(3)
 
 		if sem.TryAcquire(5) {
 			t.Error("should not acquire permits exceeding capacity")
@@ -124,7 +125,7 @@ func TestTryAcquire(t *testing.T) {
 
 func TestAcquire(t *testing.T) {
 	t.Run("successful acquisition", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		err := sem.Acquire(context.Background(), 3)
 		if err != nil {
@@ -137,7 +138,7 @@ func TestAcquire(t *testing.T) {
 	})
 
 	t.Run("invalid weight", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		err := sem.Acquire(context.Background(), 0)
 		if !errors.Is(err, shared.ErrInvalidWeight) {
@@ -151,7 +152,7 @@ func TestAcquire(t *testing.T) {
 	})
 
 	t.Run("weight exceeds capacity", func(t *testing.T) {
-		sem := NewWeighted(3, WithName("test-sem"))
+		sem := semaphore.NewWeighted(3, semaphore.WithName("test-sem"))
 
 		err := sem.Acquire(context.Background(), 5)
 		var semErr *shared.SemaphoreError
@@ -161,7 +162,7 @@ func TestAcquire(t *testing.T) {
 	})
 
 	t.Run("context cancellation", func(t *testing.T) {
-		sem := NewWeighted(1)
+		sem := semaphore.NewWeighted(1)
 
 		// Acquire the only permit
 		_ = sem.Acquire(context.Background(), 1)
@@ -177,7 +178,7 @@ func TestAcquire(t *testing.T) {
 	})
 
 	t.Run("context timeout", func(t *testing.T) {
-		sem := NewWeighted(1)
+		sem := semaphore.NewWeighted(1)
 
 		// Acquire the only permit
 		_ = sem.Acquire(context.Background(), 1)
@@ -203,7 +204,7 @@ func TestAcquire(t *testing.T) {
 
 func TestRelease(t *testing.T) {
 	t.Run("successful release", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		// Acquire some permits
 		_ = sem.Acquire(context.Background(), 3)
@@ -219,7 +220,7 @@ func TestRelease(t *testing.T) {
 	})
 
 	t.Run("release zero permits", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 		sem.Acquire(context.Background(), 2)
 
 		before := sem.Current()
@@ -232,7 +233,7 @@ func TestRelease(t *testing.T) {
 	})
 
 	t.Run("release negative permits panics", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 
 		defer func() {
 			if r := recover(); r == nil {
@@ -244,7 +245,7 @@ func TestRelease(t *testing.T) {
 	})
 
 	t.Run("release more than capacity panics", func(t *testing.T) {
-		sem := NewWeighted(3)
+		sem := semaphore.NewWeighted(3)
 
 		defer func() {
 			if r := recover(); r == nil {
@@ -256,7 +257,7 @@ func TestRelease(t *testing.T) {
 	})
 
 	t.Run("release unblocks waiters", func(t *testing.T) {
-		sem := NewWeighted(2)
+		sem := semaphore.NewWeighted(2)
 
 		// Acquire all permits
 		sem.Acquire(context.Background(), 2)
@@ -294,7 +295,7 @@ func TestRelease(t *testing.T) {
 
 func TestFairness(t *testing.T) {
 	t.Run("FIFO fairness", func(t *testing.T) {
-		sem := NewWeighted(1, WithFairness(FIFO))
+		sem := semaphore.NewWeighted(1, semaphore.WithFairness(semaphore.FIFO))
 
 		// Acquire the only permit
 		_ = sem.Acquire(context.Background(), 1)
@@ -345,7 +346,7 @@ func TestFairness(t *testing.T) {
 	})
 
 	t.Run("LIFO fairness", func(t *testing.T) {
-		sem := NewWeighted(1, WithFairness(LIFO))
+		sem := semaphore.NewWeighted(1, semaphore.WithFairness(semaphore.LIFO))
 
 		// Acquire the only permit
 		_ = sem.Acquire(context.Background(), 1)
@@ -396,7 +397,7 @@ func TestFairness(t *testing.T) {
 
 func TestConcurrency(t *testing.T) {
 	t.Run("high concurrency stress test", func(t *testing.T) {
-		sem := NewWeighted(10)
+		sem := semaphore.NewWeighted(10)
 		const numGoroutines = 100
 		const iterations = 10
 
@@ -432,7 +433,7 @@ func TestConcurrency(t *testing.T) {
 	})
 
 	t.Run("mixed acquire and try_acquire", func(t *testing.T) {
-		sem := NewWeighted(5)
+		sem := semaphore.NewWeighted(5)
 		const numGoroutines = 20
 
 		var wg sync.WaitGroup

@@ -11,7 +11,7 @@ Ion provides a collection of robust, context-aware concurrency and scheduling pr
 
 - **[workerpool](./workerpool)** - Bounded worker pool with context-aware submission and graceful shutdown
 - **[semaphore](./semaphore)** - Weighted fair semaphore with configurable fairness modes (FIFO/LIFO/None)
-- **[ratelimit](./ratelimit)** - Token bucket and leaky bucket rate limiters with configurable options
+- **[ratelimit](./ratelimit)** - Token bucket, leaky bucket, and multi-tier rate limiters with configurable options
 - **[shared](./shared)** - Common error types and observability interfaces
 
 ### Planned (v0.2+)
@@ -71,6 +71,50 @@ func main() {
     }
 
     fmt.Printf("Completed: %d tasks\\n", pool.Metrics().Completed)
+}
+```
+
+### Rate Limiting
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/ratelimit"
+)
+
+func main() {
+    // Basic token bucket: 10 requests per second, burst of 20
+    limiter := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 20)
+
+    if limiter.AllowN(time.Now(), 1) {
+        fmt.Println("Request allowed")
+    } else {
+        fmt.Println("Request denied")
+    }
+
+    // Multi-tier rate limiting for API gateways
+    config := ratelimit.DefaultMultiTierConfig()
+    config.GlobalRate = ratelimit.PerSecond(100)      // Global limit
+    config.DefaultRouteRate = ratelimit.PerSecond(20)  // Per-route limit
+    config.DefaultResourceRate = ratelimit.PerSecond(5) // Per-resource limit
+
+    mtl := ratelimit.NewMultiTierLimiter(config)
+
+    req := &ratelimit.Request{
+        Method:     "GET",
+        Endpoint:   "/api/v1/users",
+        ResourceID: "org123",
+        Context:    context.Background(),
+    }
+
+    if mtl.Allow(req) {
+        fmt.Println("Multi-tier request allowed")
+    }
 }
 ```
 

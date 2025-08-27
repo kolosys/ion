@@ -1,7 +1,18 @@
 # ratelimit
 
 Package ratelimit provides local process rate limiters for controlling function and I/O throughput.
-It includes token bucket and leaky bucket implementations with configurable options.
+It includes token bucket, leaky bucket, and multi-tier rate limiting implementations with configurable options.
+
+## Features
+
+- **Token Bucket**: Allows bursts while maintaining sustained rate limits
+- **Leaky Bucket**: Smooths out traffic bursts for consistent processing
+- **Multi-Tier Rate Limiting**: Sophisticated rate limiting with global, per-route, and per-resource limits
+- **Route Pattern Matching**: Support for custom route patterns and API gateway scenarios
+- **Resource Isolation**: Per-resource rate limiting for multi-tenant applications
+- **Header Integration**: Support for external API rate limit headers
+- **Metrics & Observability**: Comprehensive metrics and logging
+- **Thread-Safe**: Designed for concurrent access
 
 
 ## Installation
@@ -22,30 +33,73 @@ func main() {
 }
 ```
 
+## Quick Start
+
+### Basic Rate Limiting
+
+```go
+package main
+
+import "github.com/kolosys/ion/ratelimit"
+
+func main() {
+    // Token bucket: 10 requests per second, burst of 20
+    limiter := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 20)
+    
+    if limiter.AllowN(time.Now(), 1) {
+        // Request allowed
+    } else {
+        // Request denied
+    }
+}
+```
+
+### Multi-Tier Rate Limiting
+
+```go
+package main
+
+import "github.com/kolosys/ion/ratelimit"
+
+func main() {
+    config := ratelimit.DefaultMultiTierConfig()
+    config.GlobalRate = ratelimit.PerSecond(100)      // Global limit
+    config.DefaultRouteRate = ratelimit.PerSecond(20)  // Per-route limit
+    config.DefaultResourceRate = ratelimit.PerSecond(5) // Per-resource limit
+    
+    limiter := ratelimit.NewMultiTierLimiter(config)
+    
+    req := &ratelimit.Request{
+        Method:     "GET",
+        Endpoint:   "/api/v1/users",
+        ResourceID: "org123",
+        Context:    context.Background(),
+    }
+    
+    if limiter.Allow(req) {
+        // Request allowed
+    }
+}
+```
+
 ## API Reference
-### Types
-- [Clock](api-reference.md#clock) - Clock abstracts time operations for testability.
+### Core Types
+- [Limiter](api-reference.md#limiter) - Rate limiter interface
+- [Rate](api-reference.md#rate) - Rate configuration
+- [Option](api-reference.md#option) - Configuration options
 
-- [LeakyBucket](api-reference.md#leakybucket) - LeakyBucket implements a leaky bucket rate limiter.
-Requests are added to the bucket, and the buc...
-- [Limiter](api-reference.md#limiter) - Limiter represents a rate limiter that controls the rate at which events are allowed to occur.
+### Implementations
+- [TokenBucket](api-reference.md#tokenbucket) - Token bucket rate limiter
+- [LeakyBucket](api-reference.md#leakybucket) - Leaky bucket rate limiter
+- [MultiTierLimiter](api-reference.md#multitierlimiter) - Multi-tier rate limiter
 
-- [Option](api-reference.md#option) - Option configures rate limiter behavior.
-
-- [Rate](api-reference.md#rate) - Rate represents the rate at which tokens are added to the bucket.
-
-- [Timer](api-reference.md#timer) - Timer represents a timer that can be stopped.
-
-- [TokenBucket](api-reference.md#tokenbucket) - TokenBucket implements a token bucket rate limiter.
-Tokens are added to the bucket at a fixed rat...
-- [config](api-reference.md#config) - 
-- [realClock](api-reference.md#realclock) - realClock implements Clock using the real time functions.
-
-- [realTimer](api-reference.md#realtimer) - realTimer wraps time.Timer to implement our Timer interface.
-
-- [testClock](api-reference.md#testclock) - testClock is a controllable clock implementation for testing.
-
-- [testTimer](api-reference.md#testtimer) - 
+### Supporting Types
+- [Clock](api-reference.md#clock) - Time abstraction for testing
+- [Timer](api-reference.md#timer) - Timer interface
+- [Request](api-reference.md#request) - Rate limit request
+- [MultiTierConfig](api-reference.md#multitierconfig) - Multi-tier configuration
+- [RouteConfig](api-reference.md#routeconfig) - Route-specific configuration
+- [MultiTierMetrics](api-reference.md#multitiermetrics) - Metrics and observability
 
 ## Examples
 

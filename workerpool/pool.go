@@ -50,6 +50,21 @@ type Pool struct {
 	taskWrapper  func(Task) Task
 }
 
+// GetName returns the name of the pool
+func (p *Pool) GetName() string {
+	return p.name
+}
+
+// GetSize returns the size of the pool
+func (p *Pool) GetSize() int {
+	return p.size
+}
+
+// GetQueueSize returns the queue size of the pool
+func (p *Pool) GetQueueSize() int {
+	return p.queueSize
+}
+
 // taskSubmission wraps a task with its submission context
 type taskSubmission struct {
 	task Task

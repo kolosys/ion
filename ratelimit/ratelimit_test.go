@@ -1,4 +1,4 @@
-package ratelimit
+package ratelimit_test
 
 import (
 	"context"
@@ -6,20 +6,22 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/kolosys/ion/ratelimit"
 )
 
 func TestRate(t *testing.T) {
 	tests := []struct {
 		name     string
-		rate     Rate
+		rate     ratelimit.Rate
 		expected string
 	}{
-		{"zero rate", Rate{0}, "0/s"},
-		{"per second", PerSecond(10), "10.0/s"},
-		{"per minute", PerMinute(60), "1.0/s"},
-		{"per hour", PerHour(3600), "1.0/s"},
-		{"custom rate", Per(5, 2*time.Second), "2.5/s"},
-		{"fractional", Rate{0.5}, "1/2s"},
+		{"zero rate", ratelimit.Rate{0}, "0/s"},
+		{"per second", ratelimit.PerSecond(10), "10.0/s"},
+		{"per minute", ratelimit.PerMinute(60), "1.0/s"},
+		{"per hour", ratelimit.PerHour(3600), "1.0/s"},
+		{"custom rate", ratelimit.Per(5, 2*time.Second), "2.5/s"},
+		{"fractional", ratelimit.Rate{0.5}, "1/2s"},
 	}
 
 	for _, tt := range tests {
@@ -33,7 +35,7 @@ func TestRate(t *testing.T) {
 
 func TestTokenBucketNew(t *testing.T) {
 	t.Run("valid parameters", func(t *testing.T) {
-		tb := NewTokenBucket(PerSecond(10), 5)
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 5)
 		if tb.Rate().TokensPerSec != 10 {
 			t.Errorf("expected rate 10, got %v", tb.Rate().TokensPerSec)
 		}
@@ -48,7 +50,7 @@ func TestTokenBucketNew(t *testing.T) {
 				t.Error("expected panic for zero burst")
 			}
 		}()
-		NewTokenBucket(PerSecond(10), 0)
+		ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 0)
 	})
 
 	t.Run("negative rate panics", func(t *testing.T) {
@@ -57,14 +59,14 @@ func TestTokenBucketNew(t *testing.T) {
 				t.Error("expected panic for negative rate")
 			}
 		}()
-		NewTokenBucket(Rate{-1}, 5)
+		ratelimit.NewTokenBucket(ratelimit.Rate{-1}, 5)
 	})
 }
 
 func TestTokenBucketAllowN(t *testing.T) {
 	t.Run("initial burst available", func(t *testing.T) {
 		clock := newTestClock(time.Now())
-		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 		if !tb.AllowN(clock.Now(), 5) {
 			t.Error("should allow initial burst")
@@ -76,7 +78,7 @@ func TestTokenBucketAllowN(t *testing.T) {
 
 	t.Run("refill over time", func(t *testing.T) {
 		clock := newTestClock(time.Now())
-		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 		// Use all initial tokens
 		if !tb.AllowN(clock.Now(), 5) {
@@ -98,7 +100,7 @@ func TestTokenBucketAllowN(t *testing.T) {
 
 	t.Run("zero and negative requests", func(t *testing.T) {
 		clock := newTestClock(time.Now())
-		tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 		if !tb.AllowN(clock.Now(), 0) {
 			t.Error("should allow 0 tokens")
@@ -111,7 +113,7 @@ func TestTokenBucketAllowN(t *testing.T) {
 
 func TestTokenBucketWaitN(t *testing.T) {
 	clock := newTestClock(time.Now())
-	tb := NewTokenBucket(PerSecond(10), 5, WithClock(clock))
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 	t.Run("immediate success", func(t *testing.T) {
 		err := tb.WaitN(context.Background(), 3)
@@ -180,7 +182,7 @@ func TestTokenBucketWaitN(t *testing.T) {
 
 func TestLeakyBucketNew(t *testing.T) {
 	t.Run("valid parameters", func(t *testing.T) {
-		lb := NewLeakyBucket(PerSecond(10), 5)
+		lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(10), 5)
 		if lb.Rate().TokensPerSec != 10 {
 			t.Errorf("expected rate 10, got %v", lb.Rate().TokensPerSec)
 		}
@@ -195,13 +197,13 @@ func TestLeakyBucketNew(t *testing.T) {
 				t.Error("expected panic for zero capacity")
 			}
 		}()
-		NewLeakyBucket(PerSecond(10), 0)
+		ratelimit.NewLeakyBucket(ratelimit.PerSecond(10), 0)
 	})
 }
 
 func TestLeakyBucketAllowN(t *testing.T) {
 	clock := newTestClock(time.Now())
-	lb := NewLeakyBucket(PerSecond(10), 5, WithClock(clock))
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 	t.Run("fill bucket", func(t *testing.T) {
 		if !lb.AllowN(clock.Now(), 5) {
@@ -236,7 +238,7 @@ func TestLeakyBucketAllowN(t *testing.T) {
 
 func TestLeakyBucketWaitN(t *testing.T) {
 	clock := newTestClock(time.Now())
-	lb := NewLeakyBucket(PerSecond(10), 5, WithClock(clock))
+	lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(10), 5, ratelimit.WithClock(clock))
 
 	t.Run("immediate success", func(t *testing.T) {
 		err := lb.WaitN(context.Background(), 3)
@@ -281,7 +283,7 @@ func TestLeakyBucketWaitN(t *testing.T) {
 
 func TestConcurrency(t *testing.T) {
 	t.Run("token bucket concurrency", func(t *testing.T) {
-		tb := NewTokenBucket(PerSecond(100), 10)
+		tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(100), 10)
 		const numGoroutines = 50
 		const requestsPerGoroutine = 10
 
@@ -309,7 +311,7 @@ func TestConcurrency(t *testing.T) {
 	})
 
 	t.Run("leaky bucket concurrency", func(t *testing.T) {
-		lb := NewLeakyBucket(PerSecond(100), 10)
+		lb := ratelimit.NewLeakyBucket(ratelimit.PerSecond(100), 10)
 		const numGoroutines = 50
 		const requestsPerGoroutine = 10
 
@@ -340,7 +342,7 @@ func TestConcurrency(t *testing.T) {
 func TestZeroRate(t *testing.T) {
 	t.Run("token bucket with zero rate", func(t *testing.T) {
 		clock := newTestClock(time.Now())
-		tb := NewTokenBucket(Rate{0}, 5, WithClock(clock))
+		tb := ratelimit.NewTokenBucket(ratelimit.Rate{0}, 5, ratelimit.WithClock(clock))
 
 		// Should allow initial burst
 		if !tb.AllowN(clock.Now(), 5) {
@@ -356,7 +358,7 @@ func TestZeroRate(t *testing.T) {
 
 	t.Run("leaky bucket with zero rate", func(t *testing.T) {
 		clock := newTestClock(time.Now())
-		lb := NewLeakyBucket(Rate{0}, 5, WithClock(clock))
+		lb := ratelimit.NewLeakyBucket(ratelimit.Rate{0}, 5, ratelimit.WithClock(clock))
 
 		// Should allow filling bucket
 		if !lb.AllowN(clock.Now(), 5) {
