@@ -11,6 +11,8 @@ Common usage patterns and examples for ratelimit.
 ```go
 // Example basic usage pattern
 // TODO: Add actual usage examples
+// Testing the update to the docs
+// Making sure they don't get overwritten on new releases
 ```
 
 ## Advanced Patterns
@@ -18,7 +20,7 @@ Common usage patterns and examples for ratelimit.
 ### Pattern 1: Advanced Usage
 
 ```go
-// Example advanced usage pattern  
+// Example advanced usage pattern
 // TODO: Add actual advanced examples
 ```
 
