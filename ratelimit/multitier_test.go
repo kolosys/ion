@@ -272,13 +272,13 @@ func TestMultiTierLimiter_RouteNormalization(t *testing.T) {
 		Endpoint: "/channels/123456789012345678/messages",
 		Context:  context.Background(),
 	}
-	
+
 	req2 := &ratelimit.Request{
-		Method:   "GET", 
+		Method:   "GET",
 		Endpoint: "/channels/987654321098765432/messages",
 		Context:  context.Background(),
 	}
-	
+
 	// Both should be rate limited together since they normalize to the same pattern
 	limiter.Allow(req1)
 	if !limiter.Allow(req2) {
@@ -361,7 +361,7 @@ func TestMultiTierLimiter_ConcurrentAccess(t *testing.T) {
 
 	// Run concurrent requests
 	done := make(chan bool, 2)
-	
+
 	go func() {
 		for i := 0; i < 10; i++ {
 			limiter.Allow(req1)

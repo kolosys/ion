@@ -91,19 +91,19 @@ func NewAcquireTimeoutError(semaphoreName string) error {
 
 // RateLimitError represents rate limiting specific errors with context
 type RateLimitError struct {
-	Op           string        // operation that failed
-	LimiterName  string        // name of the rate limiter
-	Err          error         // underlying error
-	RetryAfter   time.Duration // suggested retry delay
-	Global       bool          // whether this is a global rate limit
-	Bucket       string        // rate limit bucket identifier
-	Remaining    int           // remaining requests in bucket
-	Limit        int           // total limit for bucket
+	Op          string        // operation that failed
+	LimiterName string        // name of the rate limiter
+	Err         error         // underlying error
+	RetryAfter  time.Duration // suggested retry delay
+	Global      bool          // whether this is a global rate limit
+	Bucket      string        // rate limit bucket identifier
+	Remaining   int           // remaining requests in bucket
+	Limit       int           // total limit for bucket
 }
 
 func (e *RateLimitError) Error() string {
 	if e.LimiterName != "" {
-		return fmt.Sprintf("ion: rate limiter %q %s: %v (retry after: %v)", 
+		return fmt.Sprintf("ion: rate limiter %q %s: %v (retry after: %v)",
 			e.LimiterName, e.Op, e.Err, e.RetryAfter)
 	}
 	return fmt.Sprintf("ion: rate limiter %s: %v (retry after: %v)", e.Op, e.Err, e.RetryAfter)

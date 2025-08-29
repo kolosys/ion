@@ -55,7 +55,7 @@ type MultiTierConfig struct {
 
 	// Bucket management
 	EnableBucketMapping bool
-	BucketTTL          time.Duration
+	BucketTTL           time.Duration
 
 	// Route pattern matching
 	RoutePatterns map[string]RouteConfig
@@ -73,15 +73,15 @@ type RouteConfig struct {
 type MultiTierMetrics struct {
 	mu sync.RWMutex
 
-	TotalRequests      int64
-	GlobalLimitHits    int64
-	RouteLimitHits     int64
-	ResourceLimitHits  int64
-	QueuedRequests     int64
-	DroppedRequests    int64
-	AvgWaitTime        time.Duration
-	MaxWaitTime        time.Duration
-	BucketsActive      int64
+	TotalRequests     int64
+	GlobalLimitHits   int64
+	RouteLimitHits    int64
+	ResourceLimitHits int64
+	QueuedRequests    int64
+	DroppedRequests   int64
+	AvgWaitTime       time.Duration
+	MaxWaitTime       time.Duration
+	BucketsActive     int64
 }
 
 // Request represents a request for rate limiting evaluation.
@@ -89,15 +89,15 @@ type Request struct {
 	// Route information
 	Method   string
 	Endpoint string
-	
+
 	// Resource identifiers (generic - applications define their own)
-	ResourceID   string // Primary resource identifier
+	ResourceID    string // Primary resource identifier
 	SubResourceID string // Secondary resource identifier
-	UserID       string // User/actor identifier
-	
+	UserID        string // User/actor identifier
+
 	// Major parameters for bucket identification
 	MajorParameters map[string]string
-	
+
 	// Request metadata
 	Priority int
 	Context  context.Context
@@ -113,11 +113,11 @@ func DefaultMultiTierConfig() *MultiTierConfig {
 		DefaultRouteBurst:    50,
 		DefaultResourceRate:  PerSecond(20),
 		DefaultResourceBurst: 20,
-		QueueSize:           1000,
-		EnablePreemptive:    true,
-		EnableBucketMapping: true,
-		BucketTTL:          time.Hour,
-		RoutePatterns:       make(map[string]RouteConfig), // No default patterns
+		QueueSize:            1000,
+		EnablePreemptive:     true,
+		EnableBucketMapping:  true,
+		BucketTTL:            time.Hour,
+		RoutePatterns:        make(map[string]RouteConfig), // No default patterns
 	}
 }
 
@@ -128,7 +128,7 @@ func NewMultiTierLimiter(config *MultiTierConfig, opts ...Option) *MultiTierLimi
 	}
 
 	cfg := newConfig(opts...)
-	
+
 	// Create global limiter
 	globalLimiter := NewTokenBucket(config.GlobalRate, config.GlobalBurst,
 		WithName(cfg.name+"_global"),
@@ -267,14 +267,14 @@ func (mtl *MultiTierLimiter) WaitN(req *Request, n int) error {
 // getOrCreateRouteLimiter gets or creates a route-specific limiter.
 func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter {
 	routeKey := mtl.generateRouteKey(req)
-	
+
 	if limiter, ok := mtl.routes.Load(routeKey); ok {
 		return limiter.(Limiter)
 	}
 
 	// Find matching route pattern
 	routeConfig := mtl.findRouteConfig(req.Method, req.Endpoint)
-	
+
 	// Create new route limiter
 	limiter := NewTokenBucket(
 		routeConfig.Rate,
@@ -303,7 +303,7 @@ func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter {
 // getResourceLimiter gets a resource-specific limiter if applicable.
 func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter {
 	var resourceKey string
-	
+
 	// Prioritize resource-specific limiting
 	if req.ResourceID != "" {
 		resourceKey = "resource:" + req.ResourceID
@@ -347,7 +347,7 @@ func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter {
 func (mtl *MultiTierLimiter) generateRouteKey(req *Request) string {
 	// Create normalized route pattern
 	pattern := mtl.normalizeRoute(req.Method, req.Endpoint)
-	
+
 	// Add major parameters to the key
 	if len(req.MajorParameters) == 0 {
 		return pattern
@@ -359,7 +359,7 @@ func (mtl *MultiTierLimiter) generateRouteKey(req *Request) string {
 	for key, value := range req.MajorParameters {
 		h.Write([]byte(key + ":" + value))
 	}
-	
+
 	return fmt.Sprintf("%s_%x", pattern, h.Sum(nil)[:8])
 }
 
@@ -368,30 +368,30 @@ func (mtl *MultiTierLimiter) normalizeRoute(method, endpoint string) string {
 	// Replace numeric IDs with placeholders (flexible for different ID formats)
 	idPattern := regexp.MustCompile(`\d+`)
 	normalized := idPattern.ReplaceAllString(endpoint, "{id}")
-	
+
 	// Normalize slashes
 	normalized = strings.ReplaceAll(normalized, "//", "/")
 	normalized = strings.TrimSuffix(normalized, "/")
-	
+
 	return method + ":" + normalized
 }
 
 // findRouteConfig finds the configuration for a specific route.
 func (mtl *MultiTierLimiter) findRouteConfig(method, endpoint string) RouteConfig {
 	normalized := mtl.normalizeRoute(method, endpoint)
-	
+
 	// Check for exact match first
 	if config, ok := mtl.config.RoutePatterns[normalized]; ok {
 		return config
 	}
-	
+
 	// Check for pattern matches
 	for pattern, config := range mtl.config.RoutePatterns {
 		if mtl.matchesPattern(normalized, pattern) {
 			return config
 		}
 	}
-	
+
 	// Return default configuration
 	return RouteConfig{
 		Rate:  mtl.config.DefaultRouteRate,
@@ -404,17 +404,17 @@ func (mtl *MultiTierLimiter) matchesPattern(endpoint, pattern string) bool {
 	// Simple pattern matching - could be enhanced with more sophisticated logic
 	endpointParts := strings.Split(endpoint, "/")
 	patternParts := strings.Split(pattern, "/")
-	
+
 	if len(endpointParts) != len(patternParts) {
 		return false
 	}
-	
+
 	for i, part := range patternParts {
 		if part != "{id}" && part != endpointParts[i] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -461,7 +461,7 @@ func (mtl *MultiTierLimiter) UpdateRateLimitFromHeaders(req *Request, headers ma
 func (mtl *MultiTierLimiter) GetMetrics() *MultiTierMetrics {
 	mtl.metrics.mu.RLock()
 	defer mtl.metrics.mu.RUnlock()
-	
+
 	// Return a copy
 	return &MultiTierMetrics{
 		TotalRequests:     mtl.metrics.TotalRequests,
