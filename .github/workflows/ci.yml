@@ -7,8 +7,6 @@ on:
 jobs:
   ci:
     uses: kolosys/.actions/.github/workflows/ci-workflow.yml@main
-    with:
-      go_version: "1.24"  # Changed from 1.25 due to missing covdata tool
     secrets:
       app_id: ${{ vars.APP_ID }}
       app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
