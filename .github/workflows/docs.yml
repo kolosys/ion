@@ -24,7 +24,7 @@ jobs:
     uses: kolosys/.actions/.github/workflows/docs-workflow.yml@main
     with:
       repository_name: "ion"
-      go_version: "1.22"
+      go_version: "1.25"
       generate_examples: true
       skip_commit: false
       create_pr: false

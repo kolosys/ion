@@ -3,14 +3,14 @@ name: Create Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
 
 jobs:
   release:
     uses: kolosys/.actions/.github/workflows/release-workflow.yml@main
     with:
       repository_name: "ion"
-      go_version: "1.22"
+      go_version: "1.25"
     secrets:
       app_id: ${{ vars.APP_ID }}
       app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
