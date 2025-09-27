@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/kolosys/ion/semaphore"
-	"github.com/kolosys/ion/shared"
 )
 
 func TestNewWeighted(t *testing.T) {
@@ -141,12 +140,12 @@ func TestAcquire(t *testing.T) {
 		sem := semaphore.NewWeighted(5)
 
 		err := sem.Acquire(context.Background(), 0)
-		if !errors.Is(err, shared.ErrInvalidWeight) {
+		if !errors.Is(err, semaphore.ErrInvalidWeight) {
 			t.Errorf("expected ErrInvalidWeight, got %v", err)
 		}
 
 		err = sem.Acquire(context.Background(), -1)
-		if !errors.Is(err, shared.ErrInvalidWeight) {
+		if !errors.Is(err, semaphore.ErrInvalidWeight) {
 			t.Errorf("expected ErrInvalidWeight, got %v", err)
 		}
 	})
@@ -155,7 +154,7 @@ func TestAcquire(t *testing.T) {
 		sem := semaphore.NewWeighted(3, semaphore.WithName("test-sem"))
 
 		err := sem.Acquire(context.Background(), 5)
-		var semErr *shared.SemaphoreError
+		var semErr *semaphore.SemaphoreError
 		if !errors.As(err, &semErr) {
 			t.Errorf("expected SemaphoreError, got %T", err)
 		}
@@ -191,7 +190,7 @@ func TestAcquire(t *testing.T) {
 		err := sem.Acquire(ctx, 1)
 		duration := time.Since(start)
 
-		var semErr *shared.SemaphoreError
+		var semErr *semaphore.SemaphoreError
 		if !errors.As(err, &semErr) {
 			t.Errorf("expected SemaphoreError due to timeout, got %T: %v", err, err)
 		}

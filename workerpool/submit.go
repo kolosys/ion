@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
-
-	"github.com/kolosys/ion/shared"
 )
 
 // Submit submits a task to the pool for execution. It respects the provided context
@@ -20,13 +18,13 @@ func (p *Pool) Submit(ctx context.Context, task Task) error {
 	// Check if pool is closed
 	select {
 	case <-p.closed:
-		return shared.NewPoolClosedError(p.name)
+		return NewPoolClosedError(p.name)
 	default:
 	}
 
 	// Check if pool is draining
 	if p.draining.Load() {
-		return shared.NewPoolClosedError(p.name)
+		return NewPoolClosedError(p.name)
 	}
 
 	submission := taskSubmission{
@@ -47,7 +45,7 @@ func (p *Pool) Submit(ctx context.Context, task Task) error {
 		return ctx.Err()
 
 	case <-p.closed:
-		return shared.NewPoolClosedError(p.name)
+		return NewPoolClosedError(p.name)
 	}
 }
 
@@ -63,13 +61,13 @@ func (p *Pool) TrySubmit(task Task) error {
 	// Check if pool is closed
 	select {
 	case <-p.closed:
-		return shared.NewPoolClosedError(p.name)
+		return NewPoolClosedError(p.name)
 	default:
 	}
 
 	// Check if pool is draining
 	if p.draining.Load() {
-		return shared.NewPoolClosedError(p.name)
+		return NewPoolClosedError(p.name)
 	}
 
 	submission := taskSubmission{
@@ -87,6 +85,6 @@ func (p *Pool) TrySubmit(task Task) error {
 
 	default:
 		// Queue is full
-		return shared.NewQueueFullError(p.name, p.queueSize)
+		return NewQueueFullError(p.name, p.queueSize)
 	}
 }

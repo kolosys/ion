@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kolosys/ion/shared"
+	"github.com/kolosys/ion/observe"
 )
 
 // Task represents a unit of work to be executed by the worker pool.
@@ -28,7 +28,7 @@ type Pool struct {
 	drainTimeout time.Duration
 
 	// Observability
-	obs *shared.Observability
+	obs *observe.Observability
 
 	// Lifecycle management
 	baseCtx   context.Context
@@ -88,7 +88,7 @@ type config struct {
 	name         string
 	baseCtx      context.Context
 	drainTimeout time.Duration
-	obs          *shared.Observability
+	obs          *observe.Observability
 	panicHandler func(any)
 	taskWrapper  func(Task) Task
 }
@@ -116,21 +116,21 @@ func WithDrainTimeout(timeout time.Duration) Option {
 }
 
 // WithLogger sets the logger for observability
-func WithLogger(logger shared.Logger) Option {
+func WithLogger(logger observe.Logger) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithLogger(logger)
 	}
 }
 
 // WithMetrics sets the metrics recorder for observability
-func WithMetrics(metrics shared.Metrics) Option {
+func WithMetrics(metrics observe.Metrics) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithMetrics(metrics)
 	}
 }
 
 // WithTracer sets the tracer for observability
-func WithTracer(tracer shared.Tracer) Option {
+func WithTracer(tracer observe.Tracer) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithTracer(tracer)
 	}
@@ -167,7 +167,7 @@ func New(size, queueSize int, opts ...Option) *Pool {
 		name:         "",
 		baseCtx:      context.Background(),
 		drainTimeout: 30 * time.Second,
-		obs:          shared.NewObservability(),
+		obs:          observe.New(),
 	}
 
 	for _, opt := range opts {

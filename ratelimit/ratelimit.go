@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kolosys/ion/shared"
+	"github.com/kolosys/ion/observe"
 )
 
 // Limiter represents a rate limiter that controls the rate at which events are allowed to occur.
@@ -97,7 +97,7 @@ type config struct {
 	name   string
 	clock  Clock
 	jitter float64
-	obs    *shared.Observability
+	obs    *observe.Observability
 }
 
 // WithName sets the rate limiter name for observability and error reporting.
@@ -129,21 +129,21 @@ func WithJitter(jitter float64) Option {
 }
 
 // WithLogger sets the logger for observability.
-func WithLogger(logger shared.Logger) Option {
+func WithLogger(logger observe.Logger) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithLogger(logger)
 	}
 }
 
 // WithMetrics sets the metrics recorder for observability.
-func WithMetrics(metrics shared.Metrics) Option {
+func WithMetrics(metrics observe.Metrics) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithMetrics(metrics)
 	}
 }
 
 // WithTracer sets the tracer for observability.
-func WithTracer(tracer shared.Tracer) Option {
+func WithTracer(tracer observe.Tracer) Option {
 	return func(c *config) {
 		c.obs = c.obs.WithTracer(tracer)
 	}
@@ -155,7 +155,7 @@ func newConfig(opts ...Option) *config {
 		name:   "",
 		clock:  realClock{},
 		jitter: 0.0,
-		obs:    shared.NewObservability(),
+		obs:    observe.New(),
 	}
 
 	for _, opt := range opts {

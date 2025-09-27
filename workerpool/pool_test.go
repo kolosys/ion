@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kolosys/ion/shared"
 	"github.com/kolosys/ion/workerpool"
 )
 
@@ -135,7 +134,7 @@ func TestSubmit(t *testing.T) {
 			t.Error("expected error when submitting to closed pool")
 		}
 
-		var poolErr *shared.PoolError
+		var poolErr *workerpool.PoolError
 		if !errors.As(err, &poolErr) {
 			t.Errorf("expected PoolError, got %T", err)
 		}
@@ -202,7 +201,7 @@ func TestTrySubmit(t *testing.T) {
 			t.Error("expected error when queue is full")
 		}
 
-		var poolErr *shared.PoolError
+		var poolErr *workerpool.PoolError
 		if !errors.As(err3, &poolErr) {
 			t.Errorf("expected PoolError, got %T", err3)
 		}

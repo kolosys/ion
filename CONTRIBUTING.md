@@ -234,7 +234,7 @@ Use Ion's error patterns:
 ```go
 // ✅ Good: Contextual errors with structured information
 func NewQueueFullError(name string, queueSize int) error {
-    return &shared.PoolError{
+    return &workerpool.PoolError{
         Msg:  fmt.Sprintf("queue is full (size: %d)", queueSize),
         Name: name,
     }
@@ -253,7 +253,7 @@ All components should support observability hooks:
 ```go
 type Pool struct {
     // ...
-    obs *shared.Observability
+    obs *observe.Observability
 }
 
 func (p *Pool) Submit(ctx context.Context, fn func()) error {
@@ -462,7 +462,7 @@ Use functional options for configuration:
 ```go
 type config struct {
     name     string
-    obs      *shared.Observability
+    obs      *observe.Observability
     // ... other options
 }
 
@@ -474,7 +474,7 @@ func WithName(name string) Option {
 
 func New(rate Rate, burst int, opts ...Option) *TokenBucket {
     cfg := &config{
-        obs: shared.NewObservability(), // Default
+        obs: observe.New(), // Default
     }
     for _, opt := range opts {
         opt(cfg)

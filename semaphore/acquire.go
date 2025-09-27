@@ -3,19 +3,17 @@ package semaphore
 import (
 	"context"
 	"time"
-
-	"github.com/kolosys/ion/shared"
 )
 
 // Acquire blocks until n permits are available or the context is canceled.
 // Returns an error if n is invalid, exceeds capacity, or if the context is canceled.
 func (s *weightedSemaphore) Acquire(ctx context.Context, n int64) error {
 	if n <= 0 {
-		return shared.ErrInvalidWeight
+		return ErrInvalidWeight
 	}
 
 	if n > s.capacity {
-		return shared.NewWeightExceedsCapacityError(s.name, n, s.capacity)
+		return NewWeightExceedsCapacityError(s.name, n, s.capacity)
 	}
 
 	// Fast path: try to acquire without blocking
@@ -91,7 +89,7 @@ func (s *weightedSemaphore) acquireSlow(ctx context.Context, n int64) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return shared.NewAcquireTimeoutError(s.name)
+		return NewAcquireTimeoutError(s.name)
 	}
 
 	s.waiters.push(w)
@@ -118,7 +116,7 @@ func (s *weightedSemaphore) acquireSlow(ctx context.Context, n int64) error {
 			return nil
 		}
 		// waiter was notified but couldn't acquire (shouldn't happen with current impl)
-		return shared.NewAcquireTimeoutError(s.name)
+		return NewAcquireTimeoutError(s.name)
 
 	case <-ctx.Done():
 		// Remove waiter from queue on cancellation
@@ -139,7 +137,7 @@ func (s *weightedSemaphore) acquireSlow(ctx context.Context, n int64) error {
 		if ctx.Err() == context.DeadlineExceeded {
 			s.obs.Metrics.Inc("ion_semaphore_acquisitions_total",
 				"semaphore_name", s.name, "result", "timeout")
-			return shared.NewAcquireTimeoutError(s.name)
+			return NewAcquireTimeoutError(s.name)
 		}
 
 		s.obs.Metrics.Inc("ion_semaphore_acquisitions_total",
