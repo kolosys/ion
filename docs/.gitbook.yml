@@ -1,0 +1,42 @@
+root: .
+
+structure:
+  readme: README.md
+  summary: SUMMARY.md
+
+title: ion
+description: [![Go Reference](https://pkg.go.dev/badge/github.com/kolosys/ion.svg)](https://pkg.go.dev/github.com/kolosys/ion)
+
+gitbook: ">=3.2.0"
+
+plugins:
+  - search
+  - sharing
+  - fontsettings
+  - theme-default
+
+pluginsConfig:
+  sharing:
+    github: true
+    facebook: false
+    twitter: false
+    weibo: false
+    instapaper: false
+    vk: false
+    all: ["github"]
+  
+  fontsettings:
+    theme: "white"
+    family: "sans"
+    size: 2
+
+pdf:
+  pageNumbers: true
+  fontSize: 12
+  fontFamily: "Arial"
+  paperSize: "a4"
+  margin:
+    right: 62
+    left: 62
+    top: 56
+    bottom: 56
