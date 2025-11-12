@@ -6,7 +6,6 @@ on:
     paths:
       - "**/*.go"
       - "docs/**"
-      - "docs-templates/**"
       - "examples/**"
       - "kolosys-docs.json"
   pull_request:
@@ -14,19 +13,32 @@ on:
     paths:
       - "**/*.go"
       - "docs/**"
-      - "docs-templates/**"
       - "examples/**"
       - "kolosys-docs.json"
   workflow_dispatch:
 
 jobs:
   generate-docs:
-    uses: kolosys/.actions/.github/workflows/docs-workflow.yml@main
-    with:
-      repository_name: "ion"
-      generate_examples: true
-      skip_commit: false
-      create_pr: false
-    secrets:
-      app_id: ${{ vars.APP_ID }}
-      app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    if: github.ref_type != 'tag'
+
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Generate Documentation
+        uses: kolosys/proton@v1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          output-directory: "docs"
+          auto-commit: true
