@@ -196,7 +196,7 @@ func (*LeakyBucket) Rate() Rate
 WaitN blocks until n requests can be added to the bucket or the context is canceled.
 
 ```go
-func (*TokenBucket) WaitN(ctx context.Context, n int) error
+func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
@@ -503,11 +503,11 @@ func (*MultiTierLimiter) Wait(req *Request) error
 WaitN blocks until n requests are allowed or context is canceled.
 
 ```go
-func (*TokenBucket) WaitN(ctx context.Context, n int) error
+func (*MultiTierLimiter) WaitN(req *Request, n int) error
 ```
 
 **Parameters:**
-- `ctx` (context.Context)
+- `req` (*Request)
 - `n` (int)
 
 **Returns:**
@@ -1189,11 +1189,11 @@ func NewTokenBucket(rate Rate, burst int, opts ...Option) *TokenBucket
 AllowN reports whether n tokens are available at time now. It returns true if the tokens were consumed, false otherwise.
 
 ```go
-func (*TokenBucket) AllowN(now time.Time, n int) bool
+func (*MultiTierLimiter) AllowN(req *Request, n int) bool
 ```
 
 **Parameters:**
-- `now` (time.Time)
+- `req` (*Request)
 - `n` (int)
 
 **Returns:**
@@ -1246,11 +1246,11 @@ func (*TokenBucket) Tokens() float64
 WaitN blocks until n tokens are available or the context is canceled.
 
 ```go
-func (*MultiTierLimiter) WaitN(req *Request, n int) error
+func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
-- `req` (*Request)
+- `ctx` (context.Context)
 - `n` (int)
 
 **Returns:**
