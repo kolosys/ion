@@ -1,0 +1,58 @@
+repository:
+    name: ion
+    owner: kolosys
+    description: '[![Go Reference](https://pkg.go.dev/badge/github.com/kolosys/ion.svg)](https://pkg.go.dev/github.com/kolosys/ion)'
+    import_path: github.com/kolosys/ion
+    branch: main
+    url: https://github.com/kolosys/ion
+output:
+    directory: /home/runner/work/ion/ion/docs
+    clean: true
+    preserve_custom: false
+    gitbook_config: true
+discovery:
+    packages:
+        auto_discover: true
+        include_patterns:
+            - ./...
+        exclude_patterns:
+            - ./vendor/...
+            - ./test/...
+            - ./.git/...
+            - '**/*_test.go'
+        manual_packages: []
+    api_generation:
+        enabled: true
+        include_unexported: false
+        include_tests: false
+        include_examples: true
+    examples:
+        enabled: true
+        auto_discover: true
+        directories: []
+    guides:
+        enabled: true
+        include_contributing: true
+        include_faq: true
+        custom_guides: []
+templates:
+    directory: ""
+    custom_templates: []
+gitbook:
+    title: ion
+    description: '[![Go Reference](https://pkg.go.dev/badge/github.com/kolosys/ion.svg)](https://pkg.go.dev/github.com/kolosys/ion)'
+    theme: default
+    plugins: []
+    structure:
+        readme: README.md
+        summary: SUMMARY.md
+metadata:
+    version: latest
+    go_version: ""
+    author: ""
+    license: MIT
+generation:
+    date_format: "2006-01-02"
+    include_generated_notice: true
+    include_toc: true
+    max_depth: 3
