@@ -7,9 +7,6 @@ repository:
     url: https://github.com/kolosys/ion
 output:
     directory: /home/runner/work/ion/ion/docs
-    clean: true
-    preserve_custom: false
-    gitbook_config: true
 discovery:
     packages:
         auto_discover: true
@@ -38,14 +35,6 @@ discovery:
 templates:
     directory: ""
     custom_templates: []
-gitbook:
-    title: ion
-    description: '[![Go Reference](https://pkg.go.dev/badge/github.com/kolosys/ion.svg)](https://pkg.go.dev/github.com/kolosys/ion)'
-    theme: default
-    plugins: []
-    structure:
-        readme: README.md
-        summary: SUMMARY.md
 metadata:
     version: latest
     go_version: ""
