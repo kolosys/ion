@@ -17,7 +17,7 @@ Common sentinel errors for semaphore operations
 
 
 ```go
-&{0xc0003e9d10 [ErrInvalidWeight] <nil> [0xc000424fc0] <nil>}
+&{0xc000427a40 [ErrInvalidWeight] <nil> [0xc00045b180] <nil>}
 ```
 
 ## Types

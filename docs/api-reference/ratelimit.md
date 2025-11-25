@@ -182,7 +182,7 @@ func (*LeakyBucket) Level() float64
 Rate returns the current leak rate.
 
 ```go
-func (*LeakyBucket) Rate() Rate
+func (*TokenBucket) Rate() Rate
 ```
 
 **Parameters:**
@@ -225,7 +225,7 @@ func (*LeakyBucket) leakLocked(now time.Time)
 waitSlow handles the blocking wait for bucket space.
 
 ```go
-func (*TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
+func (*LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 ```
 
 **Parameters:**
@@ -431,11 +431,11 @@ func (*MultiTierLimiter) Allow(req *Request) bool
 AllowN checks if n requests are allowed without blocking.
 
 ```go
-func (*LeakyBucket) AllowN(now time.Time, n int) bool
+func (*MultiTierLimiter) AllowN(req *Request, n int) bool
 ```
 
 **Parameters:**
-- `now` (time.Time)
+- `req` (*Request)
 - `n` (int)
 
 **Returns:**
@@ -1189,7 +1189,7 @@ func NewTokenBucket(rate Rate, burst int, opts ...Option) *TokenBucket
 AllowN reports whether n tokens are available at time now. It returns true if the tokens were consumed, false otherwise.
 
 ```go
-func (*LeakyBucket) AllowN(now time.Time, n int) bool
+func (*TokenBucket) AllowN(now time.Time, n int) bool
 ```
 
 **Parameters:**
@@ -1218,7 +1218,7 @@ func (*TokenBucket) Burst() int
 Rate returns the current token refill rate.
 
 ```go
-func (*TokenBucket) Rate() Rate
+func (*LeakyBucket) Rate() Rate
 ```
 
 **Parameters:**
