@@ -1,343 +1,556 @@
 # Quick Start
 
-This guide will help you get started with ion quickly with a basic example.
+This guide will help you get started with Ion quickly with practical examples for each package.
 
 ## Basic Usage
 
-Here's a simple example to get you started:
+Here's a simple example demonstrating all Ion packages:
 
 ```go
 package main
 
 import (
+    "context"
     "fmt"
-    "log"
+    "time"
+
     "github.com/kolosys/ion/circuit"
-    "github.com/kolosys/ion/observe"
     "github.com/kolosys/ion/ratelimit"
     "github.com/kolosys/ion/semaphore"
     "github.com/kolosys/ion/workerpool"
 )
 
 func main() {
-    // Basic usage example
-    fmt.Println("Welcome to ion!")
-    
-    // TODO: Add your code here
+    ctx := context.Background()
+
+    // Circuit Breaker: Protect external service calls
+    cb := circuit.New("payment-service",
+        circuit.WithFailureThreshold(5),
+        circuit.WithRecoveryTimeout(30*time.Second),
+    )
+
+    // Rate Limiter: Control request rate
+    limiter := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 20)
+
+    // Semaphore: Limit concurrent operations
+    sem := semaphore.NewWeighted(5)
+
+    // Worker Pool: Process tasks concurrently
+    pool := workerpool.New(4, 20)
+    defer pool.Close(ctx)
+
+    // Use them together
+    for i := 0; i < 10; i++ {
+        if limiter.AllowN(time.Now(), 1) {
+            pool.Submit(ctx, func(ctx context.Context) error {
+                if err := sem.Acquire(ctx, 1); err != nil {
+                    return err
+                }
+                defer sem.Release(1)
+
+                _, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
+                    return processPayment(ctx, i)
+                })
+                return err
+            })
+        }
+    }
+}
+
+func processPayment(ctx context.Context, id int) (string, error) {
+    // Simulate payment processing
+    return fmt.Sprintf("payment-%d", id), nil
 }
 ```
 
-## Common Use Cases
+## Circuit Breaker
 
-### Using circuit
+Protect your services from cascading failures.
 
-**Import Path:** `github.com/kolosys/ion/circuit`
-
-Package circuit provides circuit breaker functionality for resilient microservices.
-Circuit breakers prevent cascading failures by temporarily blocking requests to failing services,
-allowing them time to recover while providing fast-fail behavior to callers.
-
-The circuit breaker implements a three-state machine:
-- Closed: Normal operation, requests pass through
-- Open: Circuit is tripped, requests fail fast
-- Half-Open: Testing recovery, limited requests allowed
-
-Usage:
-
-	cb := circuit.New("payment-service",
-		circuit.WithFailureThreshold(5),
-		circuit.WithRecoveryTimeout(30*time.Second),
-	)
-
-	result, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
-		return paymentService.ProcessPayment(ctx, payment)
-	})
-
-The circuit breaker integrates with ION's observability system and supports
-context cancellation, timeouts, and comprehensive metrics collection.
-
+### Basic Example
 
 ```go
 package main
 
 import (
+    "context"
+    "errors"
     "fmt"
+    "time"
+
     "github.com/kolosys/ion/circuit"
 )
 
 func main() {
-    // Example usage of circuit
-    fmt.Println("Using circuit package")
+    // Create a circuit breaker for a payment service
+    cb := circuit.New("payment-service",
+        circuit.WithFailureThreshold(5),        // Trip after 5 failures
+        circuit.WithRecoveryTimeout(30*time.Second), // Wait 30s before retry
+    )
+
+    ctx := context.Background()
+
+    // Execute operations with circuit breaker protection
+    result, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
+        // Your actual service call here
+        return callPaymentService(ctx)
+    })
+
+    if err != nil {
+        if circuit.IsCircuitOpen(err) {
+            fmt.Println("Circuit is open - service unavailable")
+        } else {
+            fmt.Printf("Operation failed: %v\n", err)
+        }
+        return
+    }
+
+    fmt.Printf("Success: %v\n", result)
+}
+
+func callPaymentService(ctx context.Context) (string, error) {
+    // Simulate service call
+    return "payment-id-123", nil
 }
 ```
 
-#### Available Types
-- **CircuitBreaker** - CircuitBreaker represents a circuit breaker that controls access to a potentially failing operation. It provides fast-fail behavior when the operation is failing and automatic recovery testing when appropriate.
-- **CircuitError** - CircuitError represents circuit breaker specific errors with context
-- **CircuitMetrics** - CircuitMetrics holds metrics for a circuit breaker instance.
-- **Config** - Config holds configuration for a circuit breaker.
-- **Option** - Option is a function that configures a circuit breaker.
-- **State** - State represents the current state of a circuit breaker.
-
-#### Available Functions
-- **NewCircuitOpenError** - NewCircuitOpenError creates an error indicating the circuit is open
-- **NewCircuitTimeoutError** - NewCircuitTimeoutError creates an error indicating a circuit operation timed out
-
-For detailed API documentation, see the [circuit API Reference](../api-reference/circuit.md).
-
-### Using observe
-
-**Import Path:** `github.com/kolosys/ion/observe`
-
-Package observe provides observability interfaces and implementations
-for logging, metrics, and tracing across all Ion components.
-
+### Real-World Scenario: HTTP Client Protection
 
 ```go
 package main
 
 import (
-    "fmt"
-    "github.com/kolosys/ion/observe"
-)
+    "context"
+    "net/http"
+    "time"
 
-func main() {
-    // Example usage of observe
-    fmt.Println("Using observe package")
-}
-```
-
-#### Available Types
-- **Logger** - Logger provides a simple logging interface that components can use without depending on specific logging libraries.
-- **Metrics** - Metrics provides a simple metrics interface for recording component behavior without depending on specific metrics libraries.
-- **NopLogger** - NopLogger is a no-operation logger that discards all log messages
-- **NopMetrics** - NopMetrics is a no-operation metrics recorder that discards all metrics
-- **NopTracer** - NopTracer is a no-operation tracer that creates no spans
-- **Observability** - Observability holds observability hooks for a component
-- **Tracer** - Tracer provides a simple tracing interface for observing component operations without depending on specific tracing libraries.
-
-For detailed API documentation, see the [observe API Reference](../api-reference/observe.md).
-
-### Using ratelimit
-
-**Import Path:** `github.com/kolosys/ion/ratelimit`
-
-Package ratelimit provides local process rate limiters for controlling function and I/O throughput.
-It includes token bucket and leaky bucket implementations with configurable options.
-
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/kolosys/ion/ratelimit"
-)
-
-func main() {
-    // Example usage of ratelimit
-    fmt.Println("Using ratelimit package")
-}
-```
-
-#### Available Types
-- **Clock** - Clock abstracts time operations for testability.
-- **LeakyBucket** - LeakyBucket implements a leaky bucket rate limiter. Requests are added to the bucket, and the bucket leaks at a constant rate. If the bucket is full, requests are denied or must wait.
-- **Limiter** - Limiter represents a rate limiter that controls the rate at which events are allowed to occur.
-- **MultiTierConfig** - MultiTierConfig holds configuration for multi-tier rate limiting.
-- **MultiTierLimiter** - MultiTierLimiter implements a sophisticated multi-tier rate limiting system. It supports global, per-route, and per-resource rate limiting with intelligent bucket management and flexible API compatibility.
-- **MultiTierMetrics** - MultiTierMetrics tracks metrics for multi-tier rate limiting.
-- **Option** - Option configures rate limiter behavior.
-- **Rate** - Rate represents the rate at which tokens are added to the bucket.
-- **RateLimitError** - RateLimitError represents rate limiting specific errors with context
-- **Request** - Request represents a request for rate limiting evaluation.
-- **RouteConfig** - RouteConfig defines rate limiting for specific route patterns.
-- **Timer** - Timer represents a timer that can be stopped.
-- **TokenBucket** - TokenBucket implements a token bucket rate limiter. Tokens are added to the bucket at a fixed rate, and requests consume tokens. If no tokens are available, requests must wait or are denied.
-
-#### Available Functions
-- **NewBucketLimitError** - NewBucketLimitError creates an error for bucket-specific rate limits
-- **NewGlobalRateLimitError** - NewGlobalRateLimitError creates an error for global rate limit hits
-- **NewRateLimitExceededError** - NewRateLimitExceededError creates an error indicating rate limit was exceeded
-
-For detailed API documentation, see the [ratelimit API Reference](../api-reference/ratelimit.md).
-
-### Using semaphore
-
-**Import Path:** `github.com/kolosys/ion/semaphore`
-
-Package semaphore provides a weighted semaphore with configurable fairness modes.
-
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/kolosys/ion/semaphore"
-)
-
-func main() {
-    // Example usage of semaphore
-    fmt.Println("Using semaphore package")
-}
-```
-
-#### Available Types
-- **Fairness** - Fairness defines the ordering behavior for semaphore waiters
-- **Option** - Option configures semaphore behavior
-- **Semaphore** - Semaphore represents a weighted semaphore that controls access to a resource with a fixed capacity. It supports configurable fairness modes and observability.
-- **SemaphoreError** - SemaphoreError represents semaphore-specific errors with context
-
-#### Available Functions
-- **NewAcquireTimeoutError** - NewAcquireTimeoutError creates an error indicating an acquire operation timed out
-- **NewWeightExceedsCapacityError** - NewWeightExceedsCapacityError creates an error indicating the requested weight exceeds capacity
-
-For detailed API documentation, see the [semaphore API Reference](../api-reference/semaphore.md).
-
-### Using workerpool
-
-**Import Path:** `github.com/kolosys/ion/workerpool`
-
-Package workerpool provides a bounded worker pool with context-aware submission,
-graceful shutdown, and observability hooks.
-
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/kolosys/ion/workerpool"
-)
-
-func main() {
-    // Example usage of workerpool
-    fmt.Println("Using workerpool package")
-}
-```
-
-#### Available Types
-- **Option** - Option configures pool behavior
-- **Pool** - Pool represents a bounded worker pool that executes tasks with controlled concurrency and queue management.
-- **PoolError** - PoolError represents workerpool-specific errors with context
-- **PoolMetrics** - PoolMetrics holds runtime metrics for the pool
-- **Task** - Task represents a unit of work to be executed by the worker pool. Tasks receive a context that will be canceled if either the submission context or the pool's base context is canceled.
-
-#### Available Functions
-- **NewPoolClosedError** - NewPoolClosedError creates an error indicating the pool is closed
-- **NewQueueFullError** - NewQueueFullError creates an error indicating the queue is full
-
-For detailed API documentation, see the [workerpool API Reference](../api-reference/workerpool.md).
-
-## Step-by-Step Tutorial
-
-### Step 1: Import the Package
-
-First, import the necessary packages in your Go file:
-
-```go
-import (
-    "fmt"
     "github.com/kolosys/ion/circuit"
-    "github.com/kolosys/ion/observe"
+)
+
+type ProtectedHTTPClient struct {
+    client  *http.Client
+    circuit circuit.CircuitBreaker
+}
+
+func NewProtectedHTTPClient() *ProtectedHTTPClient {
+    return &ProtectedHTTPClient{
+        client: &http.Client{
+            Timeout: 5 * time.Second,
+        },
+        circuit: circuit.New("http-client",
+            circuit.WithFailureThreshold(3),
+            circuit.WithRecoveryTimeout(15*time.Second),
+            circuit.WithFailurePredicate(func(err error) bool {
+                // Only count 5xx errors and timeouts as failures
+                // 4xx errors (client errors) should not trip the circuit
+                return err != nil
+            }),
+        ),
+    }
+}
+
+func (c *ProtectedHTTPClient) Get(ctx context.Context, url string) (*http.Response, error) {
+    result, err := c.circuit.Execute(ctx, func(ctx context.Context) (any, error) {
+        req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+        if err != nil {
+            return nil, err
+        }
+        return c.client.Do(req)
+    })
+
+    if err != nil {
+        return nil, err
+    }
+
+    return result.(*http.Response), nil
+}
+```
+
+## Rate Limiting
+
+Control the rate at which operations execute.
+
+### Basic Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/ratelimit"
+)
+
+func main() {
+    // Create a token bucket: 10 requests per second, burst of 20
+    limiter := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 20)
+
+    ctx := context.Background()
+
+    // Check if request is allowed (non-blocking)
+    if limiter.AllowN(time.Now(), 1) {
+        fmt.Println("Request allowed")
+        // Process request
+    } else {
+        fmt.Println("Request rate limited")
+    }
+
+    // Wait for rate limit (blocking)
+    if err := limiter.WaitN(ctx, 1); err != nil {
+        fmt.Printf("Rate limit wait failed: %v\n", err)
+        return
+    }
+    fmt.Println("Request allowed after waiting")
+}
+```
+
+### Real-World Scenario: API Client Rate Limiting
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/ratelimit"
+)
+
+type RateLimitedAPIClient struct {
+    limiter ratelimit.Limiter
+}
+
+func NewRateLimitedAPIClient() *RateLimitedAPIClient {
+    // Respect API limits: 100 requests per minute with burst of 10
+    return &RateLimitedAPIClient{
+        limiter: ratelimit.NewTokenBucket(
+            ratelimit.PerMinute(100),
+            10,
+            ratelimit.WithName("api-client"),
+        ),
+    }
+}
+
+func (c *RateLimitedAPIClient) CallAPI(ctx context.Context, endpoint string) error {
+    // Wait for rate limit
+    if err := c.limiter.WaitN(ctx, 1); err != nil {
+        return fmt.Errorf("rate limit exceeded: %w", err)
+    }
+
+    // Make API call
+    fmt.Printf("Calling %s\n", endpoint)
+    return nil
+}
+
+func main() {
+    client := NewRateLimitedAPIClient()
+    ctx := context.Background()
+
+    // Make multiple API calls - rate limiter will control the rate
+    for i := 0; i < 5; i++ {
+        if err := client.CallAPI(ctx, fmt.Sprintf("/api/v1/users/%d", i)); err != nil {
+            fmt.Printf("Error: %v\n", err)
+        }
+        time.Sleep(100 * time.Millisecond)
+    }
+}
+```
+
+## Semaphore
+
+Control access to shared resources with weighted semaphores.
+
+### Basic Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/semaphore"
+)
+
+func main() {
+    // Create a semaphore with capacity of 5
+    sem := semaphore.NewWeighted(5,
+        semaphore.WithName("db-connections"),
+        semaphore.WithFairness(semaphore.FIFO),
+    )
+
+    ctx := context.Background()
+
+    // Acquire a permit
+    if err := sem.Acquire(ctx, 1); err != nil {
+        fmt.Printf("Failed to acquire: %v\n", err)
+        return
+    }
+    defer sem.Release(1)
+
+    // Use the resource
+    fmt.Println("Using shared resource")
+    time.Sleep(100 * time.Millisecond)
+}
+```
+
+### Real-World Scenario: Database Connection Pool
+
+```go
+package main
+
+import (
+    "context"
+    "database/sql"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/semaphore"
+    _ "github.com/lib/pq"
+)
+
+type PooledDB struct {
+    db  *sql.DB
+    sem semaphore.Semaphore
+}
+
+func NewPooledDB(dsn string, maxConnections int) (*PooledDB, error) {
+    db, err := sql.Open("postgres", dsn)
+    if err != nil {
+        return nil, err
+    }
+
+    db.SetMaxOpenConns(maxConnections)
+
+    return &PooledDB{
+        db: db,
+        sem: semaphore.NewWeighted(int64(maxConnections),
+            semaphore.WithName("db-pool"),
+        ),
+    }, nil
+}
+
+func (p *PooledDB) Query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+    // Acquire a connection permit
+    if err := p.sem.Acquire(ctx, 1); err != nil {
+        return nil, fmt.Errorf("failed to acquire connection: %w", err)
+    }
+    defer p.sem.Release(1)
+
+    // Use the connection
+    return p.db.QueryContext(ctx, query, args...)
+}
+```
+
+## Worker Pool
+
+Execute tasks with bounded concurrency and graceful shutdown.
+
+### Basic Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/workerpool"
+)
+
+func main() {
+    // Create a worker pool: 4 workers, queue size 20
+    pool := workerpool.New(4, 20,
+        workerpool.WithName("task-processor"),
+    )
+    defer pool.Close(context.Background())
+
+    ctx := context.Background()
+
+    // Submit tasks
+    for i := 0; i < 10; i++ {
+        taskID := i
+        pool.Submit(ctx, func(ctx context.Context) error {
+            fmt.Printf("Processing task %d\n", taskID)
+            time.Sleep(100 * time.Millisecond)
+            return nil
+        })
+    }
+
+    // Wait for tasks to complete
+    time.Sleep(2 * time.Second)
+}
+```
+
+### Real-World Scenario: Image Processing Pipeline
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "image"
+    "time"
+
+    "github.com/kolosys/ion/workerpool"
+)
+
+type ImageProcessor struct {
+    pool *workerpool.Pool
+}
+
+func NewImageProcessor() *ImageProcessor {
+    return &ImageProcessor{
+        pool: workerpool.New(4, 50, // 4 workers, 50 image queue
+            workerpool.WithName("image-processor"),
+        ),
+    }
+}
+
+func (p *ImageProcessor) ProcessImage(ctx context.Context, img image.Image) error {
+    return p.pool.Submit(ctx, func(ctx context.Context) error {
+        // Process image: resize, compress, etc.
+        fmt.Println("Processing image...")
+        time.Sleep(500 * time.Millisecond)
+        return nil
+    })
+}
+
+func (p *ImageProcessor) Close(ctx context.Context) error {
+    return p.pool.Close(ctx)
+}
+
+func main() {
+    processor := NewImageProcessor()
+    defer processor.Close(context.Background())
+
+    ctx := context.Background()
+
+    // Process multiple images
+    for i := 0; i < 10; i++ {
+        if err := processor.ProcessImage(ctx, nil); err != nil {
+            fmt.Printf("Failed to submit image: %v\n", err)
+        }
+    }
+
+    time.Sleep(5 * time.Second)
+}
+```
+
+## Combining Components
+
+Here's a complete example combining all Ion components:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/kolosys/ion/circuit"
     "github.com/kolosys/ion/ratelimit"
     "github.com/kolosys/ion/semaphore"
     "github.com/kolosys/ion/workerpool"
 )
-```
 
-### Step 2: Initialize
-
-Set up the basic configuration:
-
-```go
 func main() {
-    // Initialize your application
-    fmt.Println("Initializing ion...")
+    // Setup components
+    cb := circuit.New("external-api",
+        circuit.WithFailureThreshold(5),
+        circuit.WithRecoveryTimeout(30*time.Second),
+    )
+
+    limiter := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 20)
+    sem := semaphore.NewWeighted(5)
+    pool := workerpool.New(4, 20)
+
+    ctx := context.Background()
+    defer pool.Close(ctx)
+
+    // Process requests with all protections
+    for i := 0; i < 20; i++ {
+        requestID := i
+
+        // Rate limit check
+        if !limiter.AllowN(time.Now(), 1) {
+            fmt.Printf("Request %d: rate limited\n", requestID)
+            continue
+        }
+
+        // Submit to worker pool
+        pool.Submit(ctx, func(ctx context.Context) error {
+            // Acquire semaphore
+            if err := sem.Acquire(ctx, 1); err != nil {
+                return err
+            }
+            defer sem.Release(1)
+
+            // Execute with circuit breaker
+            _, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
+                return processRequest(ctx, requestID)
+            })
+
+            return err
+        })
+    }
+
+    time.Sleep(5 * time.Second)
+}
+
+func processRequest(ctx context.Context, id int) (string, error) {
+    fmt.Printf("Processing request %d\n", id)
+    time.Sleep(100 * time.Millisecond)
+    return fmt.Sprintf("result-%d", id), nil
 }
 ```
-
-### Step 3: Use the Library
-
-Implement your specific use case:
-
-```go
-func main() {
-    // Your implementation here
-}
-```
-
-## Running Your Code
-
-To run your Go program:
-
-```bash
-go run main.go
-```
-
-To build an executable:
-
-```bash
-go build -o myapp
-./myapp
-```
-
-## Configuration Options
-
-ion can be configured to suit your needs. Check the [Core Concepts](../core-concepts/) section for detailed information about configuration options.
 
 ## Error Handling
 
 Always handle errors appropriately:
 
 ```go
-result, err := someFunction()
+result, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
+    return operation(ctx)
+})
+
 if err != nil {
-    log.Fatalf("Error: %v", err)
+    if circuit.IsCircuitOpen(err) {
+        // Circuit is open - handle gracefully
+        return handleCircuitOpen()
+    }
+    // Other error - handle normally
+    return fmt.Errorf("operation failed: %w", err)
 }
 ```
 
-## Best Practices
+## Configuration Options
 
-- Always handle errors returned by library functions
-- Check the API documentation for detailed parameter information
-- Use meaningful variable and function names
-- Add comments to document your code
-
-## Complete Example
-
-Here's a complete working example:
+Ion uses functional options for flexible configuration:
 
 ```go
-package main
-
-import (
-    "fmt"
-    "log"
-    "github.com/kolosys/ion/circuit"
-    "github.com/kolosys/ion/observe"
-    "github.com/kolosys/ion/ratelimit"
-    "github.com/kolosys/ion/semaphore"
-    "github.com/kolosys/ion/workerpool"
+cb := circuit.New("service",
+    circuit.WithFailureThreshold(5),
+    circuit.WithRecoveryTimeout(30*time.Second),
+    circuit.WithLogger(myLogger),
+    circuit.WithMetrics(myMetrics),
 )
-
-func main() {
-    fmt.Println("Starting ion application...")
-    
-    // Add your implementation here
-    
-    fmt.Println("Application completed successfully!")
-}
 ```
 
 ## Next Steps
 
 Now that you've seen the basics, explore:
 
-- **[Core Concepts](../core-concepts/)** - Understanding the library architecture
+- **[Core Concepts](../core-concepts/)** - Understanding each package in depth
 - **[API Reference](../api-reference/)** - Complete API documentation
-- **[Examples](../examples/README.md)** - More detailed examples
+- **[Examples](../examples/)** - More detailed examples
 - **[Advanced Topics](../advanced/)** - Performance tuning and advanced patterns
 
 ## Getting Help
@@ -345,6 +558,5 @@ Now that you've seen the basics, explore:
 If you run into issues:
 
 1. Check the [API Reference](../api-reference/)
-2. Browse the [Examples](../examples/README.md)
+2. Browse the [Examples](../examples/)
 3. Visit the [GitHub Issues](https://github.com/kolosys/ion/issues) page
-

@@ -1,12 +1,12 @@
 # Installation
 
-This guide will help you install and set up ion in your Go project.
+This guide will help you install and set up Ion in your Go project.
 
 ## Prerequisites
 
-Before installing ion, ensure you have:
+Before installing Ion, ensure you have:
 
-- **Go ** or later installed
+- **Go 1.21** or later installed ([download](https://go.dev/dl/))
 - A Go module initialized in your project (run `go mod init` if needed)
 - Access to the GitHub repository (for private repositories)
 
@@ -14,78 +14,26 @@ Before installing ion, ensure you have:
 
 ### Step 1: Install the Package
 
-Use `go get` to install ion:
+Use `go get` to install Ion:
 
 ```bash
-go get github.com/kolosys/ion
+go get github.com/kolosys/ion@latest
 ```
 
 This will download the package and add it to your `go.mod` file.
 
 ### Step 2: Import in Your Code
 
-Import the package in your Go source files:
+Ion is organized into separate packages. Import only the packages you need:
 
 ```go
-import "github.com/kolosys/ion"
-```
-
-### Multiple Packages
-
-ion includes several packages. Import the ones you need:
-
-```go
-// Package circuit provides circuit breaker functionality for resilient microservices.
-Circuit breakers prevent cascading failures by temporarily blocking requests to failing services,
-allowing them time to recover while providing fast-fail behavior to callers.
-
-The circuit breaker implements a three-state machine:
-- Closed: Normal operation, requests pass through
-- Open: Circuit is tripped, requests fail fast
-- Half-Open: Testing recovery, limited requests allowed
-
-Usage:
-
-	cb := circuit.New("payment-service",
-		circuit.WithFailureThreshold(5),
-		circuit.WithRecoveryTimeout(30*time.Second),
-	)
-
-	result, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
-		return paymentService.ProcessPayment(ctx, payment)
-	})
-
-The circuit breaker integrates with ION's observability system and supports
-context cancellation, timeouts, and comprehensive metrics collection.
-
-import "github.com/kolosys/ion/circuit"
-```
-
-```go
-// Package observe provides observability interfaces and implementations
-for logging, metrics, and tracing across all Ion components.
-
-import "github.com/kolosys/ion/observe"
-```
-
-```go
-// Package ratelimit provides local process rate limiters for controlling function and I/O throughput.
-It includes token bucket and leaky bucket implementations with configurable options.
-
-import "github.com/kolosys/ion/ratelimit"
-```
-
-```go
-// Package semaphore provides a weighted semaphore with configurable fairness modes.
-
-import "github.com/kolosys/ion/semaphore"
-```
-
-```go
-// Package workerpool provides a bounded worker pool with context-aware submission,
-graceful shutdown, and observability hooks.
-
-import "github.com/kolosys/ion/workerpool"
+import (
+    "github.com/kolosys/ion/circuit"     // Circuit breakers
+    "github.com/kolosys/ion/ratelimit"   // Rate limiting
+    "github.com/kolosys/ion/semaphore"  // Semaphores
+    "github.com/kolosys/ion/workerpool"  // Worker pools
+    "github.com/kolosys/ion/observe"     // Observability
+)
 ```
 
 ### Step 3: Verify Installation
@@ -96,12 +44,32 @@ Create a simple test file to verify the installation:
 package main
 
 import (
+    "context"
     "fmt"
-    "github.com/kolosys/ion"
+    "time"
+
+    "github.com/kolosys/ion/circuit"
 )
 
 func main() {
-    fmt.Println("ion installed successfully!")
+    // Create a simple circuit breaker
+    cb := circuit.New("test-service",
+        circuit.WithFailureThreshold(5),
+        circuit.WithRecoveryTimeout(30*time.Second),
+    )
+
+    // Execute a simple operation
+    ctx := context.Background()
+    result, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
+        return "success", nil
+    })
+
+    if err != nil {
+        fmt.Printf("Error: %v\n", err)
+    } else {
+        fmt.Printf("Result: %v\n", result)
+        fmt.Println("Ion installed successfully!")
+    }
 }
 ```
 
@@ -109,6 +77,64 @@ Run the test:
 
 ```bash
 go run main.go
+```
+
+You should see: `Result: success` and `Ion installed successfully!`
+
+## Package-Specific Installation
+
+### Circuit Breaker
+
+```go
+import "github.com/kolosys/ion/circuit"
+
+cb := circuit.New("payment-service",
+    circuit.WithFailureThreshold(5),
+    circuit.WithRecoveryTimeout(30*time.Second),
+)
+```
+
+### Rate Limiting
+
+```go
+import "github.com/kolosys/ion/ratelimit"
+
+limiter := ratelimit.NewTokenBucket(
+    ratelimit.PerSecond(10), // 10 requests per second
+    20,                       // burst capacity of 20
+)
+```
+
+### Semaphore
+
+```go
+import "github.com/kolosys/ion/semaphore"
+
+sem := semaphore.NewWeighted(10, // capacity of 10
+    semaphore.WithName("db-pool"),
+    semaphore.WithFairness(semaphore.FIFO),
+)
+```
+
+### Worker Pool
+
+```go
+import "github.com/kolosys/ion/workerpool"
+
+pool := workerpool.New(4, 20, // 4 workers, queue size 20
+    workerpool.WithName("image-processor"),
+)
+```
+
+### Observability
+
+```go
+import "github.com/kolosys/ion/observe"
+
+obs := observe.New().
+    WithLogger(myLogger).
+    WithMetrics(myMetrics).
+    WithTracer(myTracer)
 ```
 
 ## Updating the Package
@@ -122,18 +148,18 @@ go get -u github.com/kolosys/ion
 To update to a specific version:
 
 ```bash
-go get github.com/kolosys/ion@v1.2.3
+go get github.com/kolosys/ion@latest
 ```
+
+Check available versions on the [GitHub releases page](https://github.com/kolosys/ion/releases).
 
 ## Installing a Specific Version
 
 To install a specific version of the package:
 
 ```bash
-go get github.com/kolosys/ion@v1.0.0
+go get github.com/kolosys/ion@latest
 ```
-
-Check available versions on the [GitHub releases page](https://github.com/kolosys/ion/releases).
 
 ## Development Setup
 
@@ -148,6 +174,8 @@ cd ion
 
 ### Install Dependencies
 
+Ion has zero external dependencies, so no additional packages are required:
+
 ```bash
 go mod download
 ```
@@ -158,6 +186,18 @@ go mod download
 go test ./...
 ```
 
+Run tests with race detection:
+
+```bash
+go test -race ./...
+```
+
+### Run Benchmarks
+
+```bash
+go test -bench=. -benchmem ./...
+```
+
 ## Troubleshooting
 
 ### Module Not Found
@@ -166,7 +206,13 @@ If you encounter a "module not found" error:
 
 1. Ensure your `GOPATH` is set correctly
 2. Check that you have network access to GitHub
-3. Try running `go clean -modcache` and reinstall
+3. Verify Go version: `go version` (requires 1.21+)
+4. Try running `go clean -modcache` and reinstall:
+
+```bash
+go clean -modcache
+go get github.com/kolosys/ion@latest
+```
 
 ### Private Repository Access
 
@@ -182,13 +228,59 @@ Or set up GOPRIVATE:
 export GOPRIVATE=github.com/kolosys/ion
 ```
 
+### Version Conflicts
+
+If you encounter version conflicts with other packages:
+
+1. Check your `go.mod` file for version constraints
+2. Use `go mod tidy` to resolve dependencies:
+
+```bash
+go mod tidy
+```
+
+3. If issues persist, check for incompatible versions:
+
+```bash
+go list -m -versions github.com/kolosys/ion
+```
+
+## IDE Integration
+
+### VS Code
+
+Ion works seamlessly with VS Code's Go extension. Ensure you have:
+
+1. The [Go extension](https://marketplace.visualstudio.com/items?itemName=golang.Go) installed
+2. `gopls` installed and up to date:
+
+```bash
+go install golang.org/x/tools/gopls@latest
+```
+
+### GoLand
+
+Ion is fully supported in GoLand. The IDE will automatically:
+
+- Provide code completion
+- Show inline documentation
+- Highlight errors and warnings
+- Support refactoring
+
+### Vim/Neovim
+
+For Vim/Neovim users, ensure you have:
+
+- `gopls` installed for LSP support
+- A compatible LSP client (e.g., `vim-lsp`, `coc.nvim`)
+
 ## Next Steps
 
-Now that you have ion installed, check out the [Quick Start Guide](quick-start.md) to learn how to use it.
+Now that you have Ion installed, check out the [Quick Start Guide](quick-start.md) to learn how to use it in your projects.
 
 ## Additional Resources
 
-- [Quick Start Guide](quick-start.md)
-- [API Reference](../api-reference/)
-- [Examples](../examples/README.md)
-
+- [Quick Start Guide](quick-start.md) - Get started with practical examples
+- [API Reference](../api-reference/) - Complete API documentation
+- [Examples](../examples/) - Working code examples
+- [Core Concepts](../core-concepts/) - Deep dive into each package
