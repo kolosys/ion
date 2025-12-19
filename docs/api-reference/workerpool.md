@@ -151,22 +151,7 @@ Pool represents a bounded worker pool that executes tasks with controlled concur
 ```go
 // Create a new Pool
 pool := Pool{
-    name: "example",
-    size: 42,
-    queueSize: 42,
-    drainTimeout: /* value */,
-    obs: &/* value */{},
-    baseCtx: /* value */,
-    cancel: /* value */,
-    closed: /* value */,
-    draining: /* value */,
-    closeOnce: /* value */,
-    drainOnce: /* value */,
-    taskCh: /* value */,
-    workerWg: /* value */,
-    metrics: PoolMetrics{},
-    panicHandler: /* value */,
-    taskWrapper: /* value */,
+
 }
 ```
 
@@ -174,45 +159,8 @@ pool := Pool{
 
 ```go
 type Pool struct {
-    name string
-    size int
-    queueSize int
-    drainTimeout time.Duration
-    obs *observe.Observability
-    baseCtx context.Context
-    cancel context.CancelFunc
-    closed chan *ast.StructType
-    draining atomic.Bool
-    closeOnce sync.Once
-    drainOnce sync.Once
-    taskCh chan taskSubmission
-    workerWg sync.WaitGroup
-    metrics PoolMetrics
-    panicHandler func(any)
-    taskWrapper func(Task) Task
 }
 ```
-
-### Fields
-
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| name | `string` | Configuration |
-| size | `int` |  |
-| queueSize | `int` |  |
-| drainTimeout | `time.Duration` |  |
-| obs | `*observe.Observability` | Observability |
-| baseCtx | `context.Context` | Lifecycle management |
-| cancel | `context.CancelFunc` |  |
-| closed | `chan *ast.StructType` |  |
-| draining | `atomic.Bool` |  |
-| closeOnce | `sync.Once` |  |
-| drainOnce | `sync.Once` |  |
-| taskCh | `chan taskSubmission` | Task management |
-| workerWg | `sync.WaitGroup` |  |
-| metrics | `PoolMetrics` | Metrics |
-| panicHandler | `func(any)` | Panic recovery |
-| taskWrapper | `func(Task) Task` |  |
 
 ### Constructor Functions
 
@@ -374,35 +322,6 @@ func (*Pool) TrySubmit(task Task) error
 
 **Returns:**
 - error
-
-### executeTask
-
-executeTask executes a single task with proper error handling and metrics
-
-```go
-func (*Pool) executeTask(submission taskSubmission, workerID int)
-```
-
-**Parameters:**
-- `submission` (taskSubmission)
-- `workerID` (int)
-
-**Returns:**
-  None
-
-### worker
-
-worker runs the main worker loop
-
-```go
-func (*Pool) worker(id int)
-```
-
-**Parameters:**
-- `id` (int)
-
-**Returns:**
-  None
 
 ### PoolError
 PoolError represents workerpool-specific errors with context

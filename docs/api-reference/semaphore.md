@@ -11,13 +11,14 @@ Package semaphore provides a weighted semaphore with configurable fairness modes
 
 ## Variables
 
-### ErrInvalidWeight
+**ErrInvalidWeight**
 
 Common sentinel errors for semaphore operations
 
 
 ```go
-&{0xc000427a40 [ErrInvalidWeight] <nil> [0xc00045b180] <nil>}
+var ErrInvalidWeight = errors.New("ion: invalid weight, must be positive")	// ErrInvalidWeight is returned when a negative or zero weight is provided to semaphore operations
+
 ```
 
 ## Types
