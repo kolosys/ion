@@ -64,13 +64,7 @@ LeakyBucket implements a leaky bucket rate limiter. Requests are added to the bu
 ```go
 // Create a new LeakyBucket
 leakybucket := LeakyBucket{
-    rate: Rate{},
-    capacity: 42,
-    cfg: &config{}{},
-    mu: /* value */,
-    level: 3.14,
-    lastLeak: /* value */,
-    initialized: true,
+
 }
 ```
 
@@ -78,27 +72,8 @@ leakybucket := LeakyBucket{
 
 ```go
 type LeakyBucket struct {
-    rate Rate
-    capacity int
-    cfg *config
-    mu sync.Mutex
-    level float64
-    lastLeak time.Time
-    initialized bool
 }
 ```
-
-### Fields
-
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| rate | `Rate` | Configuration |
-| capacity | `int` |  |
-| cfg | `*config` |  |
-| mu | `sync.Mutex` | State |
-| level | `float64` | Current level in the bucket |
-| lastLeak | `time.Time` |  |
-| initialized | `bool` |  |
 
 ### Constructor Functions
 
@@ -182,7 +157,7 @@ func (*LeakyBucket) Level() float64
 Rate returns the current leak rate.
 
 ```go
-func (*TokenBucket) Rate() Rate
+func (*LeakyBucket) Rate() Rate
 ```
 
 **Parameters:**
@@ -196,42 +171,12 @@ func (*TokenBucket) Rate() Rate
 WaitN blocks until n requests can be added to the bucket or the context is canceled.
 
 ```go
-func (*TokenBucket) WaitN(ctx context.Context, n int) error
+func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
 - `ctx` (context.Context)
 - `n` (int)
-
-**Returns:**
-- error
-
-### leakLocked
-
-leakLocked removes requests from the bucket based on elapsed time. Must be called with lb.mu held.
-
-```go
-func (*LeakyBucket) leakLocked(now time.Time)
-```
-
-**Parameters:**
-- `now` (time.Time)
-
-**Returns:**
-  None
-
-### waitSlow
-
-waitSlow handles the blocking wait for bucket space.
-
-```go
-func (*LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
-```
-
-**Parameters:**
-- `ctx` (context.Context)
-- `n` (int)
-- `now` (time.Time)
 
 **Returns:**
 - error
@@ -354,14 +299,7 @@ MultiTierLimiter implements a sophisticated multi-tier rate limiting system. It 
 ```go
 // Create a new MultiTierLimiter
 multitierlimiter := MultiTierLimiter{
-    mu: /* value */,
-    global: Limiter{},
-    routes: /* value */,
-    resources: /* value */,
-    bucketMap: /* value */,
-    config: &MultiTierConfig{}{},
-    cfg: &config{}{},
-    metrics: &MultiTierMetrics{}{},
+
 }
 ```
 
@@ -369,29 +307,8 @@ multitierlimiter := MultiTierLimiter{
 
 ```go
 type MultiTierLimiter struct {
-    mu sync.RWMutex
-    global Limiter
-    routes sync.Map
-    resources sync.Map
-    bucketMap sync.Map
-    config *MultiTierConfig
-    cfg *config
-    metrics *MultiTierMetrics
 }
 ```
-
-### Fields
-
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| mu | `sync.RWMutex` |  |
-| global | `Limiter` | Global limiter shared across all requests |
-| routes | `sync.Map` | Route limiters for specific API endpoints |
-| resources | `sync.Map` | Resource limiters for specific resources (organizations, projects, etc.) |
-| bucketMap | `sync.Map` | Bucket mapping for API-style rate limit buckets |
-| config | `*MultiTierConfig` | Configuration |
-| cfg | `*config` |  |
-| metrics | `*MultiTierMetrics` | Metrics and observability |
 
 ### Constructor Functions
 
@@ -431,11 +348,11 @@ func (*MultiTierLimiter) Allow(req *Request) bool
 AllowN checks if n requests are allowed without blocking.
 
 ```go
-func (*MultiTierLimiter) AllowN(req *Request, n int) bool
+func (*LeakyBucket) AllowN(now time.Time, n int) bool
 ```
 
 **Parameters:**
-- `req` (*Request)
+- `now` (time.Time)
 - `n` (int)
 
 **Returns:**
@@ -503,148 +420,15 @@ func (*MultiTierLimiter) Wait(req *Request) error
 WaitN blocks until n requests are allowed or context is canceled.
 
 ```go
-func (*MultiTierLimiter) WaitN(req *Request, n int) error
+func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
-- `req` (*Request)
+- `ctx` (context.Context)
 - `n` (int)
 
 **Returns:**
 - error
-
-### findRouteConfig
-
-findRouteConfig finds the configuration for a specific route.
-
-```go
-func (*MultiTierLimiter) findRouteConfig(method, endpoint string) RouteConfig
-```
-
-**Parameters:**
-- `method` (string)
-- `endpoint` (string)
-
-**Returns:**
-- RouteConfig
-
-### generateRouteKey
-
-generateRouteKey creates a unique key for route identification.
-
-```go
-func (*MultiTierLimiter) generateRouteKey(req *Request) string
-```
-
-**Parameters:**
-- `req` (*Request)
-
-**Returns:**
-- string
-
-### getOrCreateRouteLimiter
-
-getOrCreateRouteLimiter gets or creates a route-specific limiter.
-
-```go
-func (*MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter
-```
-
-**Parameters:**
-- `req` (*Request)
-
-**Returns:**
-- Limiter
-
-### getResourceLimiter
-
-getResourceLimiter gets a resource-specific limiter if applicable.
-
-```go
-func (*MultiTierLimiter) getResourceLimiter(req *Request) Limiter
-```
-
-**Parameters:**
-- `req` (*Request)
-
-**Returns:**
-- Limiter
-
-### matchesPattern
-
-matchesPattern checks if an endpoint matches a route pattern.
-
-```go
-func (*MultiTierLimiter) matchesPattern(endpoint, pattern string) bool
-```
-
-**Parameters:**
-- `endpoint` (string)
-- `pattern` (string)
-
-**Returns:**
-- bool
-
-### normalizeRoute
-
-normalizeRoute normalizes an API route for pattern matching.
-
-```go
-func (*MultiTierLimiter) normalizeRoute(method, endpoint string) string
-```
-
-**Parameters:**
-- `method` (string)
-- `endpoint` (string)
-
-**Returns:**
-- string
-
-### parseFloatHeader
-
-parseFloatHeader parses a float header value.
-
-```go
-func (*MultiTierLimiter) parseFloatHeader(headers map[string]string, key string, defaultValue float64) float64
-```
-
-**Parameters:**
-- `headers` (map[string]string)
-- `key` (string)
-- `defaultValue` (float64)
-
-**Returns:**
-- float64
-
-### parseIntHeader
-
-parseIntHeader parses an integer header value.
-
-```go
-func (*MultiTierLimiter) parseIntHeader(headers map[string]string, key string, defaultValue int) int
-```
-
-**Parameters:**
-- `headers` (map[string]string)
-- `key` (string)
-- `defaultValue` (int)
-
-**Returns:**
-- int
-
-### updateMetrics
-
-updateMetrics safely updates metrics using a function.
-
-```go
-func (*MultiTierLimiter) updateMetrics(fn func(*MultiTierMetrics))
-```
-
-**Parameters:**
-- `fn` (func(*MultiTierMetrics))
-
-**Returns:**
-  None
 
 ### MultiTierMetrics
 MultiTierMetrics tracks metrics for multi-tier rate limiting.
@@ -654,7 +438,6 @@ MultiTierMetrics tracks metrics for multi-tier rate limiting.
 ```go
 // Create a new MultiTierMetrics
 multitiermetrics := MultiTierMetrics{
-    mu: /* value */,
     TotalRequests: 42,
     GlobalLimitHits: 42,
     RouteLimitHits: 42,
@@ -671,7 +454,6 @@ multitiermetrics := MultiTierMetrics{
 
 ```go
 type MultiTierMetrics struct {
-    mu sync.RWMutex
     TotalRequests int64
     GlobalLimitHits int64
     RouteLimitHits int64
@@ -688,7 +470,6 @@ type MultiTierMetrics struct {
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| mu | `sync.RWMutex` |  |
 | TotalRequests | `int64` |  |
 | GlobalLimitHits | `int64` |  |
 | RouteLimitHits | `int64` |  |
@@ -1128,13 +909,7 @@ TokenBucket implements a token bucket rate limiter. Tokens are added to the buck
 ```go
 // Create a new TokenBucket
 tokenbucket := TokenBucket{
-    rate: Rate{},
-    burst: 42,
-    cfg: &config{}{},
-    mu: /* value */,
-    tokens: 3.14,
-    lastRefill: /* value */,
-    initialized: true,
+
 }
 ```
 
@@ -1142,27 +917,8 @@ tokenbucket := TokenBucket{
 
 ```go
 type TokenBucket struct {
-    rate Rate
-    burst int
-    cfg *config
-    mu sync.Mutex
-    tokens float64
-    lastRefill time.Time
-    initialized bool
 }
 ```
-
-### Fields
-
-| Field | Type | Description |
-| ----- | ---- | ----------- |
-| rate | `Rate` | Configuration |
-| burst | `int` |  |
-| cfg | `*config` |  |
-| mu | `sync.Mutex` | State |
-| tokens | `float64` |  |
-| lastRefill | `time.Time` |  |
-| initialized | `bool` |  |
 
 ### Constructor Functions
 
@@ -1189,7 +945,7 @@ func NewTokenBucket(rate Rate, burst int, opts ...Option) *TokenBucket
 AllowN reports whether n tokens are available at time now. It returns true if the tokens were consumed, false otherwise.
 
 ```go
-func (*TokenBucket) AllowN(now time.Time, n int) bool
+func (*LeakyBucket) AllowN(now time.Time, n int) bool
 ```
 
 **Parameters:**
@@ -1252,36 +1008,6 @@ func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 **Parameters:**
 - `ctx` (context.Context)
 - `n` (int)
-
-**Returns:**
-- error
-
-### refillLocked
-
-refillLocked adds tokens to the bucket based on elapsed time. Must be called with tb.mu held.
-
-```go
-func (*TokenBucket) refillLocked(now time.Time)
-```
-
-**Parameters:**
-- `now` (time.Time)
-
-**Returns:**
-  None
-
-### waitSlow
-
-waitSlow handles the blocking wait for tokens.
-
-```go
-func (*TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
-```
-
-**Parameters:**
-- `ctx` (context.Context)
-- `n` (int)
-- `now` (time.Time)
 
 **Returns:**
 - error
