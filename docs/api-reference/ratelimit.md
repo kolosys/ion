@@ -157,7 +157,7 @@ func (*LeakyBucket) Level() float64
 Rate returns the current leak rate.
 
 ```go
-func (*TokenBucket) Rate() Rate
+func (*LeakyBucket) Rate() Rate
 ```
 
 **Parameters:**
@@ -372,12 +372,82 @@ func (*MultiTierLimiter) GetMetrics() *MultiTierMetrics
 **Returns:**
 - *MultiTierMetrics
 
+### IsPaused
+
+IsPaused returns whether the limiter is currently paused.
+
+```go
+func (*MultiTierLimiter) IsPaused() bool
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- bool
+
+### PauseFor
+
+PauseFor pauses all requests for the specified duration.
+
+```go
+func (*MultiTierLimiter) PauseFor(duration time.Duration)
+```
+
+**Parameters:**
+- `duration` (time.Duration)
+
+**Returns:**
+  None
+
+### PauseUntil
+
+PauseUntil pauses all requests until the specified time. This is useful for handling global rate limits from APIs.
+
+```go
+func (*MultiTierLimiter) PauseUntil(until time.Time)
+```
+
+**Parameters:**
+- `until` (time.Time)
+
+**Returns:**
+  None
+
+### PausedUntil
+
+PausedUntil returns the time when the pause will end, or zero if not paused.
+
+```go
+func (*MultiTierLimiter) PausedUntil() time.Time
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+- time.Time
+
 ### Reset
 
 Reset resets all rate limit buckets (useful for testing).
 
 ```go
 func (*MultiTierLimiter) Reset()
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+  None
+
+### Resume
+
+Resume resumes rate limiting after a pause.
+
+```go
+func (*MultiTierLimiter) Resume()
 ```
 
 **Parameters:**
@@ -420,11 +490,11 @@ func (*MultiTierLimiter) Wait(req *Request) error
 WaitN blocks until n requests are allowed or context is canceled.
 
 ```go
-func (*MultiTierLimiter) WaitN(req *Request, n int) error
+func (*LeakyBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
-- `req` (*Request)
+- `ctx` (context.Context)
 - `n` (int)
 
 **Returns:**
@@ -945,11 +1015,11 @@ func NewTokenBucket(rate Rate, burst int, opts ...Option) *TokenBucket
 AllowN reports whether n tokens are available at time now. It returns true if the tokens were consumed, false otherwise.
 
 ```go
-func (*LeakyBucket) AllowN(now time.Time, n int) bool
+func (*MultiTierLimiter) AllowN(req *Request, n int) bool
 ```
 
 **Parameters:**
-- `now` (time.Time)
+- `req` (*Request)
 - `n` (int)
 
 **Returns:**
@@ -969,12 +1039,40 @@ func (*TokenBucket) Burst() int
 **Returns:**
 - int
 
+### ClearTemporaryLimit
+
+ClearTemporaryLimit cancels any active temporary limit and restores original values.
+
+```go
+func (*TokenBucket) ClearTemporaryLimit()
+```
+
+**Parameters:**
+  None
+
+**Returns:**
+  None
+
+### DrainTo
+
+DrainTo sets the token count to a specific value. This is useful for syncing with external rate limit state (e.g., API remaining count).
+
+```go
+func (*TokenBucket) DrainTo(tokens int)
+```
+
+**Parameters:**
+- `tokens` (int)
+
+**Returns:**
+  None
+
 ### Rate
 
 Rate returns the current token refill rate.
 
 ```go
-func (*TokenBucket) Rate() Rate
+func (*LeakyBucket) Rate() Rate
 ```
 
 **Parameters:**
@@ -982,6 +1080,50 @@ func (*TokenBucket) Rate() Rate
 
 **Returns:**
 - Rate
+
+### SetBurst
+
+SetBurst updates the bucket capacity dynamically. If the new burst is smaller than current tokens, tokens are capped.
+
+```go
+func (*TokenBucket) SetBurst(burst int)
+```
+
+**Parameters:**
+- `burst` (int)
+
+**Returns:**
+  None
+
+### SetRate
+
+SetRate updates the token refill rate dynamically.
+
+```go
+func (*TokenBucket) SetRate(rate Rate)
+```
+
+**Parameters:**
+- `rate` (Rate)
+
+**Returns:**
+  None
+
+### SetTemporaryLimit
+
+SetTemporaryLimit applies a temporary rate limit that reverts after duration. This is useful for handling rate limit responses from APIs.
+
+```go
+func (*TokenBucket) SetTemporaryLimit(rate Rate, burst int, duration time.Duration)
+```
+
+**Parameters:**
+- `rate` (Rate)
+- `burst` (int)
+- `duration` (time.Duration)
+
+**Returns:**
+  None
 
 ### Tokens
 
@@ -1002,7 +1144,7 @@ func (*TokenBucket) Tokens() float64
 WaitN blocks until n tokens are available or the context is canceled.
 
 ```go
-func (*LeakyBucket) WaitN(ctx context.Context, n int) error
+func (*TokenBucket) WaitN(ctx context.Context, n int) error
 ```
 
 **Parameters:**
