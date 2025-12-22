@@ -372,3 +372,126 @@ func TestZeroRate(t *testing.T) {
 		}
 	})
 }
+
+func TestTokenBucketSetRate(t *testing.T) {
+	clock := newTestClock(time.Now())
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 10, ratelimit.WithClock(clock))
+
+	// Use all tokens
+	tb.AllowN(clock.Now(), 10)
+
+	// Change rate to 100/s
+	tb.SetRate(ratelimit.PerSecond(100))
+
+	// After 100ms should have 10 tokens (100 * 0.1)
+	clock.Advance(100 * time.Millisecond)
+
+	if !tb.AllowN(clock.Now(), 10) {
+		t.Error("should have 10 tokens after rate change")
+	}
+
+	// Verify rate was updated
+	if tb.Rate().TokensPerSec != 100 {
+		t.Errorf("expected rate 100, got %v", tb.Rate().TokensPerSec)
+	}
+}
+
+func TestTokenBucketSetBurst(t *testing.T) {
+	clock := newTestClock(time.Now())
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 10, ratelimit.WithClock(clock))
+
+	// Initially have 10 tokens (burst)
+	if tb.Tokens() != 10 {
+		t.Errorf("expected 10 tokens, got %v", tb.Tokens())
+	}
+
+	// Reduce burst - tokens should be capped
+	tb.SetBurst(5)
+
+	if tb.Burst() != 5 {
+		t.Errorf("expected burst 5, got %d", tb.Burst())
+	}
+
+	if tb.Tokens() != 5 {
+		t.Errorf("expected tokens capped to 5, got %v", tb.Tokens())
+	}
+}
+
+func TestTokenBucketDrainTo(t *testing.T) {
+	clock := newTestClock(time.Now())
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(10), 10, ratelimit.WithClock(clock))
+
+	// Initially have 10 tokens
+	if tb.Tokens() != 10 {
+		t.Errorf("expected 10 tokens, got %v", tb.Tokens())
+	}
+
+	// Drain to 3
+	tb.DrainTo(3)
+
+	if tb.Tokens() != 3 {
+		t.Errorf("expected 3 tokens, got %v", tb.Tokens())
+	}
+
+	// DrainTo above burst caps at burst
+	tb.DrainTo(100)
+	if tb.Tokens() != 10 {
+		t.Errorf("expected 10 tokens (capped at burst), got %v", tb.Tokens())
+	}
+
+	// DrainTo negative sets to 0
+	tb.DrainTo(-5)
+	if tb.Tokens() != 0 {
+		t.Errorf("expected 0 tokens, got %v", tb.Tokens())
+	}
+}
+
+func TestTokenBucketSetTemporaryLimit(t *testing.T) {
+	clock := newTestClock(time.Now())
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(100), 10, ratelimit.WithClock(clock))
+
+	originalRate := tb.Rate()
+	originalBurst := tb.Burst()
+
+	// Apply temporary limit
+	tb.SetTemporaryLimit(ratelimit.PerSecond(1), 1, time.Second)
+
+	// Verify limit was applied
+	if tb.Rate().TokensPerSec != 1 {
+		t.Errorf("expected temp rate 1, got %v", tb.Rate().TokensPerSec)
+	}
+	if tb.Burst() != 1 {
+		t.Errorf("expected temp burst 1, got %d", tb.Burst())
+	}
+
+	// Advance time past the duration
+	clock.Advance(2 * time.Second)
+	time.Sleep(10 * time.Millisecond) // Let timer goroutine run
+
+	// Verify original values restored
+	if tb.Rate().TokensPerSec != originalRate.TokensPerSec {
+		t.Errorf("expected rate restored to %v, got %v", originalRate.TokensPerSec, tb.Rate().TokensPerSec)
+	}
+	if tb.Burst() != originalBurst {
+		t.Errorf("expected burst restored to %d, got %d", originalBurst, tb.Burst())
+	}
+}
+
+func TestTokenBucketClearTemporaryLimit(t *testing.T) {
+	clock := newTestClock(time.Now())
+	tb := ratelimit.NewTokenBucket(ratelimit.PerSecond(100), 10, ratelimit.WithClock(clock))
+
+	// Apply temporary limit for 10 seconds
+	tb.SetTemporaryLimit(ratelimit.PerSecond(1), 1, 10*time.Second)
+
+	// Clear it immediately
+	tb.ClearTemporaryLimit()
+
+	// Verify original values restored
+	if tb.Rate().TokensPerSec != 100 {
+		t.Errorf("expected rate 100, got %v", tb.Rate().TokensPerSec)
+	}
+	if tb.Burst() != 10 {
+		t.Errorf("expected burst 10, got %d", tb.Burst())
+	}
+}

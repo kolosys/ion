@@ -14,15 +14,11 @@ func (p *Pool) Close(ctx context.Context) error {
 
 	p.closeOnce.Do(func() {
 		p.obs.Logger.Info("closing workerpool", "pool", p.name)
-
-		// Mark pool as closed to reject new submissions
 		close(p.closed)
-
-		// Cancel the base context to signal workers to stop
 		p.cancel()
-
-		// Close the task channel to prevent new tasks from being queued
+		p.taskMu.Lock()
 		close(p.taskCh)
+		p.taskMu.Unlock()
 
 		// Wait for workers to finish with timeout
 		done := make(chan struct{})
@@ -54,10 +50,8 @@ func (p *Pool) Drain(ctx context.Context) error {
 	p.drainOnce.Do(func() {
 		p.obs.Logger.Info("draining workerpool", "pool", p.name)
 
-		// Mark as draining to reject new submissions
 		p.draining.Store(true)
 
-		// Wait for queue to empty and workers to finish processing
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
 

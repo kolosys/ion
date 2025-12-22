@@ -40,6 +40,7 @@ type Pool struct {
 
 	// Task management
 	taskCh   chan taskSubmission
+	taskMu   sync.RWMutex
 	workerWg sync.WaitGroup
 
 	// Metrics

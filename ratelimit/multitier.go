@@ -35,6 +35,10 @@ type MultiTierLimiter struct {
 
 	// Metrics and observability
 	metrics *MultiTierMetrics
+
+	// Pause state
+	pausedUntil time.Time
+	pauseTimer  Timer
 }
 
 // MultiTierConfig holds configuration for multi-tier rate limiting.
@@ -129,7 +133,6 @@ func NewMultiTierLimiter(config *MultiTierConfig, opts ...Option) *MultiTierLimi
 
 	cfg := newConfig(opts...)
 
-	// Create global limiter
 	globalLimiter := NewTokenBucket(config.GlobalRate, config.GlobalBurst,
 		WithName(cfg.name+"_global"),
 		WithClock(cfg.clock),
@@ -165,7 +168,13 @@ func (mtl *MultiTierLimiter) Allow(req *Request) bool {
 func (mtl *MultiTierLimiter) AllowN(req *Request, n int) bool {
 	now := mtl.cfg.clock.Now()
 
-	// Check global limit
+	if mtl.IsPaused() {
+		mtl.updateMetrics(func(m *MultiTierMetrics) {
+			m.GlobalLimitHits++
+		})
+		return false
+	}
+
 	if !mtl.global.AllowN(now, n) {
 		mtl.updateMetrics(func(m *MultiTierMetrics) {
 			m.GlobalLimitHits++
@@ -173,7 +182,6 @@ func (mtl *MultiTierLimiter) AllowN(req *Request, n int) bool {
 		return false
 	}
 
-	// Check route limit
 	routeLimiter := mtl.getOrCreateRouteLimiter(req)
 	if !routeLimiter.AllowN(now, n) {
 		mtl.updateMetrics(func(m *MultiTierMetrics) {
@@ -182,7 +190,6 @@ func (mtl *MultiTierLimiter) AllowN(req *Request, n int) bool {
 		return false
 	}
 
-	// Check resource limit
 	if resourceLimiter := mtl.getResourceLimiter(req); resourceLimiter != nil {
 		if !resourceLimiter.AllowN(now, n) {
 			mtl.updateMetrics(func(m *MultiTierMetrics) {
@@ -213,6 +220,10 @@ func (mtl *MultiTierLimiter) WaitN(req *Request, n int) error {
 
 	start := mtl.cfg.clock.Now()
 
+	if err := mtl.waitForPause(ctx); err != nil {
+		return err
+	}
+
 	// Fast path: try immediate approval
 	if mtl.AllowN(req, n) {
 		return nil
@@ -234,7 +245,6 @@ func (mtl *MultiTierLimiter) WaitN(req *Request, n int) error {
 		}{resourceLimiter, "resource"})
 	}
 
-	// Wait for all limiters sequentially
 	for _, l := range limiters {
 		if err := l.limiter.WaitN(ctx, n); err != nil {
 			mtl.cfg.obs.Logger.Debug("rate limit wait failed",
@@ -246,14 +256,12 @@ func (mtl *MultiTierLimiter) WaitN(req *Request, n int) error {
 		}
 	}
 
-	// Update wait time metrics
 	waitTime := mtl.cfg.clock.Now().Sub(start)
 	mtl.updateMetrics(func(m *MultiTierMetrics) {
 		m.TotalRequests += int64(n)
 		if waitTime > m.MaxWaitTime {
 			m.MaxWaitTime = waitTime
 		}
-		// Simple moving average for avg wait time
 		if m.AvgWaitTime == 0 {
 			m.AvgWaitTime = waitTime
 		} else {
@@ -272,10 +280,8 @@ func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter {
 		return limiter.(Limiter)
 	}
 
-	// Find matching route pattern
 	routeConfig := mtl.findRouteConfig(req.Method, req.Endpoint)
 
-	// Create new route limiter
 	limiter := NewTokenBucket(
 		routeConfig.Rate,
 		routeConfig.Burst,
@@ -287,7 +293,6 @@ func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter {
 		WithTracer(mtl.cfg.obs.Tracer),
 	)
 
-	// Store and return
 	actual, loaded := mtl.routes.LoadOrStore(routeKey, limiter)
 	if loaded {
 		return actual.(Limiter)
@@ -304,7 +309,6 @@ func (mtl *MultiTierLimiter) getOrCreateRouteLimiter(req *Request) Limiter {
 func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter {
 	var resourceKey string
 
-	// Prioritize resource-specific limiting
 	if req.ResourceID != "" {
 		resourceKey = "resource:" + req.ResourceID
 	} else if req.SubResourceID != "" {
@@ -319,7 +323,6 @@ func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter {
 		return limiter.(Limiter)
 	}
 
-	// Create new resource limiter
 	limiter := NewTokenBucket(
 		mtl.config.DefaultResourceRate,
 		mtl.config.DefaultResourceBurst,
@@ -345,15 +348,12 @@ func (mtl *MultiTierLimiter) getResourceLimiter(req *Request) Limiter {
 
 // generateRouteKey creates a unique key for route identification.
 func (mtl *MultiTierLimiter) generateRouteKey(req *Request) string {
-	// Create normalized route pattern
 	pattern := mtl.normalizeRoute(req.Method, req.Endpoint)
 
-	// Add major parameters to the key
 	if len(req.MajorParameters) == 0 {
 		return pattern
 	}
 
-	// Create hash of major parameters for unique bucket identification
 	h := md5.New()
 	h.Write([]byte(pattern))
 	for key, value := range req.MajorParameters {
@@ -365,14 +365,10 @@ func (mtl *MultiTierLimiter) generateRouteKey(req *Request) string {
 
 // normalizeRoute normalizes an API route for pattern matching.
 func (mtl *MultiTierLimiter) normalizeRoute(method, endpoint string) string {
-	// Replace numeric IDs with placeholders (flexible for different ID formats)
 	idPattern := regexp.MustCompile(`\d+`)
 	normalized := idPattern.ReplaceAllString(endpoint, "{id}")
-
-	// Normalize slashes
 	normalized = strings.ReplaceAll(normalized, "//", "/")
 	normalized = strings.TrimSuffix(normalized, "/")
-
 	return method + ":" + normalized
 }
 
@@ -380,19 +376,16 @@ func (mtl *MultiTierLimiter) normalizeRoute(method, endpoint string) string {
 func (mtl *MultiTierLimiter) findRouteConfig(method, endpoint string) RouteConfig {
 	normalized := mtl.normalizeRoute(method, endpoint)
 
-	// Check for exact match first
 	if config, ok := mtl.config.RoutePatterns[normalized]; ok {
 		return config
 	}
 
-	// Check for pattern matches
 	for pattern, config := range mtl.config.RoutePatterns {
 		if mtl.matchesPattern(normalized, pattern) {
 			return config
 		}
 	}
 
-	// Return default configuration
 	return RouteConfig{
 		Rate:  mtl.config.DefaultRouteRate,
 		Burst: mtl.config.DefaultRouteBurst,
@@ -401,7 +394,6 @@ func (mtl *MultiTierLimiter) findRouteConfig(method, endpoint string) RouteConfi
 
 // matchesPattern checks if an endpoint matches a route pattern.
 func (mtl *MultiTierLimiter) matchesPattern(endpoint, pattern string) bool {
-	// Simple pattern matching - could be enhanced with more sophisticated logic
 	endpointParts := strings.Split(endpoint, "/")
 	patternParts := strings.Split(pattern, "/")
 
@@ -421,30 +413,27 @@ func (mtl *MultiTierLimiter) matchesPattern(endpoint, pattern string) bool {
 // UpdateRateLimitFromHeaders updates rate limit information from API response headers.
 // This is designed for APIs that provide rate limit information in response headers.
 func (mtl *MultiTierLimiter) UpdateRateLimitFromHeaders(req *Request, headers map[string]string) error {
-	// Parse rate limit headers
 	limit := mtl.parseIntHeader(headers, "X-RateLimit-Limit", 0)
 	remaining := mtl.parseIntHeader(headers, "X-RateLimit-Remaining", 0)
 	resetAfter := mtl.parseFloatHeader(headers, "X-RateLimit-Reset-After", 0)
 	global := headers["X-RateLimit-Global"] == "true"
 	bucket := headers["X-RateLimit-Bucket"]
 
-	// Update bucket mapping if provided
 	if bucket != "" && mtl.config.EnableBucketMapping {
 		routeKey := mtl.generateRouteKey(req)
 		mtl.bucketMap.Store(routeKey, bucket)
 	}
 
-	// Handle global rate limit
 	if global && resetAfter > 0 {
 		mtl.cfg.obs.Logger.Warn("global rate limit hit",
 			"limiter_name", mtl.cfg.name,
 			"reset_after", resetAfter,
 		)
-		// Note: In a real implementation, you might want to temporarily
-		// adjust the global limiter based on this information
+		// Schedule auto-resume
+		resetTime := mtl.cfg.clock.Now().Add(time.Duration(resetAfter * float64(time.Second)))
+		mtl.PauseUntil(resetTime)
 	}
 
-	// Log rate limit information
 	mtl.cfg.obs.Logger.Debug("rate limit headers processed",
 		"limiter_name", mtl.cfg.name,
 		"limit", limit,
@@ -462,7 +451,6 @@ func (mtl *MultiTierLimiter) GetMetrics() *MultiTierMetrics {
 	mtl.metrics.mu.RLock()
 	defer mtl.metrics.mu.RUnlock()
 
-	// Return a copy
 	return &MultiTierMetrics{
 		TotalRequests:     mtl.metrics.TotalRequests,
 		GlobalLimitHits:   mtl.metrics.GlobalLimitHits,
@@ -505,7 +493,6 @@ func (mtl *MultiTierLimiter) parseFloatHeader(headers map[string]string, key str
 
 // Reset resets all rate limit buckets (useful for testing).
 func (mtl *MultiTierLimiter) Reset() {
-	// Reset global limiter
 	if tb, ok := mtl.global.(*TokenBucket); ok {
 		tb.mu.Lock()
 		tb.tokens = float64(tb.burst)
@@ -513,7 +500,6 @@ func (mtl *MultiTierLimiter) Reset() {
 		tb.mu.Unlock()
 	}
 
-	// Reset route limiters
 	mtl.routes.Range(func(key, value interface{}) bool {
 		if tb, ok := value.(*TokenBucket); ok {
 			tb.mu.Lock()
@@ -524,7 +510,6 @@ func (mtl *MultiTierLimiter) Reset() {
 		return true
 	})
 
-	// Reset resource limiters
 	mtl.resources.Range(func(key, value interface{}) bool {
 		if tb, ok := value.(*TokenBucket); ok {
 			tb.mu.Lock()
@@ -535,7 +520,6 @@ func (mtl *MultiTierLimiter) Reset() {
 		return true
 	})
 
-	// Reset metrics
 	mtl.metrics.mu.Lock()
 	mtl.metrics.TotalRequests = 0
 	mtl.metrics.GlobalLimitHits = 0
@@ -547,4 +531,113 @@ func (mtl *MultiTierLimiter) Reset() {
 	mtl.metrics.MaxWaitTime = 0
 	mtl.metrics.BucketsActive = 0
 	mtl.metrics.mu.Unlock()
+
+	mtl.mu.Lock()
+	if mtl.pauseTimer != nil {
+		mtl.pauseTimer.Stop()
+	}
+	mtl.pausedUntil = time.Time{}
+	mtl.pauseTimer = nil
+	mtl.mu.Unlock()
+}
+
+// PauseUntil pauses all requests until the specified time.
+// This is useful for handling global rate limits from APIs.
+func (mtl *MultiTierLimiter) PauseUntil(until time.Time) {
+	mtl.mu.Lock()
+	defer mtl.mu.Unlock()
+
+	if mtl.pauseTimer != nil {
+		mtl.pauseTimer.Stop()
+	}
+
+	mtl.pausedUntil = until
+	duration := time.Until(until)
+
+	if duration <= 0 {
+		mtl.pausedUntil = time.Time{}
+		mtl.pauseTimer = nil
+		return
+	}
+
+	mtl.cfg.obs.Logger.Warn("rate limiter paused",
+		"limiter_name", mtl.cfg.name,
+		"until", until,
+		"duration", duration,
+	)
+
+	// Schedule auto-resume
+	mtl.pauseTimer = mtl.cfg.clock.AfterFunc(duration, func() {
+		mtl.Resume()
+	})
+}
+
+// PauseFor pauses all requests for the specified duration.
+func (mtl *MultiTierLimiter) PauseFor(duration time.Duration) {
+	mtl.PauseUntil(mtl.cfg.clock.Now().Add(duration))
+}
+
+// Resume resumes rate limiting after a pause.
+func (mtl *MultiTierLimiter) Resume() {
+	mtl.mu.Lock()
+	defer mtl.mu.Unlock()
+
+	if mtl.pauseTimer != nil {
+		mtl.pauseTimer.Stop()
+		mtl.pauseTimer = nil
+	}
+
+	if !mtl.pausedUntil.IsZero() {
+		mtl.cfg.obs.Logger.Info("rate limiter resumed",
+			"limiter_name", mtl.cfg.name,
+		)
+	}
+
+	mtl.pausedUntil = time.Time{}
+}
+
+// IsPaused returns whether the limiter is currently paused.
+func (mtl *MultiTierLimiter) IsPaused() bool {
+	mtl.mu.RLock()
+	defer mtl.mu.RUnlock()
+
+	if mtl.pausedUntil.IsZero() {
+		return false
+	}
+	return mtl.cfg.clock.Now().Before(mtl.pausedUntil)
+}
+
+// PausedUntil returns the time when the pause will end, or zero if not paused.
+func (mtl *MultiTierLimiter) PausedUntil() time.Time {
+	mtl.mu.RLock()
+	defer mtl.mu.RUnlock()
+	return mtl.pausedUntil
+}
+
+// waitForPause waits for the pause to end or context to be canceled.
+func (mtl *MultiTierLimiter) waitForPause(ctx context.Context) error {
+	mtl.mu.RLock()
+	pausedUntil := mtl.pausedUntil
+	mtl.mu.RUnlock()
+
+	if pausedUntil.IsZero() || mtl.cfg.clock.Now().After(pausedUntil) {
+		return nil
+	}
+
+	duration := time.Until(pausedUntil)
+	if duration <= 0 {
+		return nil
+	}
+
+	mtl.cfg.obs.Logger.Debug("waiting for pause to end",
+		"limiter_name", mtl.cfg.name,
+		"duration", duration,
+	)
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(duration):
+		return nil
+	}
 }

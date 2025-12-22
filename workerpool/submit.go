@@ -34,6 +34,17 @@ func (p *Pool) Submit(ctx context.Context, task Task) error {
 
 	p.obs.Metrics.Inc("ion_workerpool_tasks_submitted_total", "pool_name", p.name)
 
+	// Acquire read lock to prevent Close() from closing taskCh while we're sending
+	p.taskMu.RLock()
+	defer p.taskMu.RUnlock()
+
+	// Check again if pool is closed (after acquiring lock)
+	select {
+	case <-p.closed:
+		return NewPoolClosedError(p.name)
+	default:
+	}
+
 	// Try to submit the task, respecting context cancellation and pool closure
 	select {
 	case p.taskCh <- submission:
@@ -73,6 +84,17 @@ func (p *Pool) TrySubmit(task Task) error {
 	submission := taskSubmission{
 		task: task,
 		ctx:  context.Background(), // TrySubmit uses background context
+	}
+
+	// Acquire read lock to prevent Close() from closing taskCh while we're sending
+	p.taskMu.RLock()
+	defer p.taskMu.RUnlock()
+
+	// Check again if pool is closed (after acquiring lock)
+	select {
+	case <-p.closed:
+		return NewPoolClosedError(p.name)
+	default:
 	}
 
 	// Try to submit without blocking

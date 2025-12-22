@@ -3,6 +3,7 @@ package ratelimit_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/kolosys/ion/ratelimit"
 )
@@ -467,5 +468,183 @@ func BenchmarkMultiTierLimiter_AllowWithResource(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		limiter.Allow(req)
+	}
+}
+
+func TestMultiTierLimiter_PauseUntil(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	config.GlobalRate = ratelimit.PerSecond(100)
+	config.GlobalBurst = 100
+
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	req := &ratelimit.Request{
+		Method:   "GET",
+		Endpoint: "/test",
+		Context:  context.Background(),
+	}
+
+	// Should allow requests initially
+	if !limiter.Allow(req) {
+		t.Error("Request should be allowed before pause")
+	}
+
+	// Pause for 100ms
+	limiter.PauseFor(100 * time.Millisecond)
+
+	// Should deny requests while paused
+	if limiter.Allow(req) {
+		t.Error("Request should be denied while paused")
+	}
+
+	if !limiter.IsPaused() {
+		t.Error("Limiter should report as paused")
+	}
+
+	// Wait for pause to end
+	time.Sleep(150 * time.Millisecond)
+
+	if limiter.IsPaused() {
+		t.Error("Limiter should not be paused after pause duration")
+	}
+
+	// Should allow requests after pause
+	if !limiter.Allow(req) {
+		t.Error("Request should be allowed after pause ends")
+	}
+}
+
+func TestMultiTierLimiter_Resume(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	config.GlobalRate = ratelimit.PerSecond(100)
+	config.GlobalBurst = 100
+
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	req := &ratelimit.Request{
+		Method:   "GET",
+		Endpoint: "/test",
+		Context:  context.Background(),
+	}
+
+	// Pause for 10 seconds
+	limiter.PauseFor(10 * time.Second)
+
+	// Should be paused
+	if !limiter.IsPaused() {
+		t.Error("Limiter should be paused")
+	}
+
+	// Resume immediately
+	limiter.Resume()
+
+	// Should not be paused
+	if limiter.IsPaused() {
+		t.Error("Limiter should not be paused after resume")
+	}
+
+	// Should allow requests
+	if !limiter.Allow(req) {
+		t.Error("Request should be allowed after resume")
+	}
+}
+
+func TestMultiTierLimiter_WaitDuringPause(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	config.GlobalRate = ratelimit.PerSecond(100)
+	config.GlobalBurst = 100
+
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	req := &ratelimit.Request{
+		Method:   "GET",
+		Endpoint: "/test",
+		Context:  context.Background(),
+	}
+
+	// Pause for 50ms
+	limiter.PauseFor(50 * time.Millisecond)
+
+	// Wait should block until pause ends then succeed
+	start := time.Now()
+	err := limiter.Wait(req)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Errorf("Wait should succeed: %v", err)
+	}
+
+	if elapsed < 40*time.Millisecond {
+		t.Errorf("Wait should have blocked for at least 40ms, blocked for %v", elapsed)
+	}
+}
+
+func TestMultiTierLimiter_WaitCancelledDuringPause(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	config.GlobalRate = ratelimit.PerSecond(100)
+	config.GlobalBurst = 100
+
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	// Pause for 10 seconds
+	limiter.PauseFor(10 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	req := &ratelimit.Request{
+		Method:   "GET",
+		Endpoint: "/test",
+		Context:  ctx,
+	}
+
+	err := limiter.Wait(req)
+	if err != context.DeadlineExceeded {
+		t.Errorf("Expected context.DeadlineExceeded, got %v", err)
+	}
+}
+
+func TestMultiTierLimiter_PausedUntil(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	// Not paused initially
+	if !limiter.PausedUntil().IsZero() {
+		t.Error("PausedUntil should be zero when not paused")
+	}
+
+	// Pause
+	pauseTime := time.Now().Add(time.Second)
+	limiter.PauseUntil(pauseTime)
+
+	pausedUntil := limiter.PausedUntil()
+	if pausedUntil.IsZero() {
+		t.Error("PausedUntil should not be zero when paused")
+	}
+
+	// Resume
+	limiter.Resume()
+
+	if !limiter.PausedUntil().IsZero() {
+		t.Error("PausedUntil should be zero after resume")
+	}
+}
+
+func TestMultiTierLimiter_ResetClearsPause(t *testing.T) {
+	config := ratelimit.DefaultMultiTierConfig()
+	limiter := ratelimit.NewMultiTierLimiter(config, ratelimit.WithName("test"))
+
+	// Pause for 10 seconds
+	limiter.PauseFor(10 * time.Second)
+
+	if !limiter.IsPaused() {
+		t.Error("Limiter should be paused")
+	}
+
+	// Reset should clear pause
+	limiter.Reset()
+
+	if limiter.IsPaused() {
+		t.Error("Reset should clear pause state")
 	}
 }

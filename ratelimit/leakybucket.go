@@ -102,13 +102,11 @@ func (lb *LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	lb.mu.Lock()
 	lb.leakLocked(now)
 
-	// Check if request can ever be satisfied
 	if n > lb.capacity {
 		lb.mu.Unlock()
 		return fmt.Errorf("ratelimit: requested %d requests exceeds bucket capacity %d", n, lb.capacity)
 	}
 
-	// Calculate wait time
 	needed := lb.level + float64(n) - float64(lb.capacity)
 	var waitDuration time.Duration
 	if needed > 0 && lb.rate.TokensPerSec > 0 {
@@ -120,7 +118,6 @@ func (lb *LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 		return ctx.Err()
 	}
 
-	// Apply jitter if configured
 	if lb.cfg.jitter > 0 && waitDuration > 0 {
 		jitter := rand.Float64() * lb.cfg.jitter * waitDuration.Seconds()
 		waitDuration += time.Duration(jitter * float64(time.Second))
@@ -129,7 +126,6 @@ func (lb *LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	lb.mu.Unlock()
 
 	if waitDuration <= 0 {
-		// Should be able to add requests now
 		return lb.WaitN(ctx, n)
 	}
 
@@ -141,7 +137,6 @@ func (lb *LeakyBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 
 	start := lb.cfg.clock.Now()
 
-	// Wait for the calculated duration or context cancellation
 	timer := lb.cfg.clock.AfterFunc(waitDuration, func() {})
 	defer timer.Stop()
 
@@ -184,7 +179,6 @@ func (lb *LeakyBucket) leakLocked(now time.Time) {
 		return // Time hasn't advanced or went backwards
 	}
 
-	// Calculate how much should leak out
 	leakAmount := lb.rate.TokensPerSec * elapsed.Seconds()
 	lb.level = math.Max(0, lb.level-leakAmount)
 	lb.lastLeak = now

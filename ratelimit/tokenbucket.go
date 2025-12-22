@@ -23,6 +23,16 @@ type TokenBucket struct {
 	tokens      float64
 	lastRefill  time.Time
 	initialized bool
+
+	// Temporary limit support
+	tempLimit *temporaryLimit
+}
+
+// temporaryLimit holds state for a temporary rate limit override
+type temporaryLimit struct {
+	originalRate  Rate
+	originalBurst int
+	timer         Timer
 }
 
 // NewTokenBucket creates a new token bucket rate limiter.
@@ -101,7 +111,6 @@ func (tb *TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	tb.mu.Lock()
 	tb.refillLocked(now)
 
-	// Check if request can ever be satisfied
 	if n > tb.burst {
 		tb.mu.Unlock()
 		return fmt.Errorf("ratelimit: requested %d tokens exceeds burst limit %d", n, tb.burst)
@@ -113,13 +122,11 @@ func (tb *TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 	if tb.rate.TokensPerSec > 0 {
 		waitDuration = time.Duration(deficit / tb.rate.TokensPerSec * float64(time.Second))
 	} else {
-		// Rate is zero, wait indefinitely
 		tb.mu.Unlock()
 		<-ctx.Done()
 		return ctx.Err()
 	}
 
-	// Apply jitter if configured
 	if tb.cfg.jitter > 0 {
 		jitter := rand.Float64() * tb.cfg.jitter * waitDuration.Seconds()
 		waitDuration += time.Duration(jitter * float64(time.Second))
@@ -135,7 +142,6 @@ func (tb *TokenBucket) waitSlow(ctx context.Context, n int, now time.Time) error
 
 	start := tb.cfg.clock.Now()
 
-	// Wait for the calculated duration or context cancellation
 	timer := tb.cfg.clock.AfterFunc(waitDuration, func() {})
 	defer timer.Stop()
 
@@ -198,10 +204,148 @@ func (tb *TokenBucket) Tokens() float64 {
 
 // Rate returns the current token refill rate.
 func (tb *TokenBucket) Rate() Rate {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
 	return tb.rate
 }
 
 // Burst returns the bucket capacity.
 func (tb *TokenBucket) Burst() int {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
 	return tb.burst
+}
+
+// SetRate updates the token refill rate dynamically.
+func (tb *TokenBucket) SetRate(rate Rate) {
+	if rate.TokensPerSec < 0 {
+		return
+	}
+
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	tb.refillLocked(tb.cfg.clock.Now())
+	tb.rate = rate
+
+	tb.cfg.obs.Logger.Debug("rate updated",
+		"limiter_name", tb.cfg.name,
+		"new_rate", rate.String(),
+	)
+}
+
+// SetBurst updates the bucket capacity dynamically.
+// If the new burst is smaller than current tokens, tokens are capped.
+func (tb *TokenBucket) SetBurst(burst int) {
+	if burst <= 0 {
+		return
+	}
+
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	tb.burst = burst
+	if tb.tokens > float64(burst) {
+		tb.tokens = float64(burst)
+	}
+
+	tb.cfg.obs.Logger.Debug("burst updated",
+		"limiter_name", tb.cfg.name,
+		"new_burst", burst,
+	)
+}
+
+// SetTemporaryLimit applies a temporary rate limit that reverts after duration.
+// This is useful for handling rate limit responses from APIs.
+func (tb *TokenBucket) SetTemporaryLimit(rate Rate, burst int, duration time.Duration) {
+	if burst <= 0 || duration <= 0 {
+		return
+	}
+
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	if tb.tempLimit != nil && tb.tempLimit.timer != nil {
+		tb.tempLimit.timer.Stop()
+	}
+
+	if tb.tempLimit == nil {
+		tb.tempLimit = &temporaryLimit{
+			originalRate:  tb.rate,
+			originalBurst: tb.burst,
+		}
+	}
+
+	tb.rate = rate
+	tb.burst = burst
+	if tb.tokens > float64(burst) {
+		tb.tokens = float64(burst)
+	}
+
+	tb.cfg.obs.Logger.Info("temporary limit applied",
+		"limiter_name", tb.cfg.name,
+		"temp_rate", rate.String(),
+		"temp_burst", burst,
+		"duration", duration,
+	)
+
+	tb.tempLimit.timer = tb.cfg.clock.AfterFunc(duration, func() {
+		tb.revertTemporaryLimit()
+	})
+}
+
+// revertTemporaryLimit restores the original rate and burst.
+func (tb *TokenBucket) revertTemporaryLimit() {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	if tb.tempLimit == nil {
+		return
+	}
+
+	tb.rate = tb.tempLimit.originalRate
+	tb.burst = tb.tempLimit.originalBurst
+	tb.tempLimit = nil
+
+	tb.cfg.obs.Logger.Info("temporary limit reverted",
+		"limiter_name", tb.cfg.name,
+		"rate", tb.rate.String(),
+		"burst", tb.burst,
+	)
+}
+
+// DrainTo sets the token count to a specific value.
+// This is useful for syncing with external rate limit state (e.g., API remaining count).
+func (tb *TokenBucket) DrainTo(tokens int) {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+
+	if tokens < 0 {
+		tokens = 0
+	}
+	if tokens > tb.burst {
+		tokens = tb.burst
+	}
+
+	tb.tokens = float64(tokens)
+	tb.lastRefill = tb.cfg.clock.Now()
+
+	tb.cfg.obs.Logger.Debug("tokens drained to",
+		"limiter_name", tb.cfg.name,
+		"tokens", tokens,
+	)
+	tb.cfg.obs.Metrics.Gauge("ion_ratelimit_tokens_available",
+		tb.tokens, "limiter_name", tb.cfg.name)
+}
+
+// ClearTemporaryLimit cancels any active temporary limit and restores original values.
+func (tb *TokenBucket) ClearTemporaryLimit() {
+	tb.mu.Lock()
+
+	if tb.tempLimit != nil && tb.tempLimit.timer != nil {
+		tb.tempLimit.timer.Stop()
+	}
+	tb.mu.Unlock()
+
+	tb.revertTemporaryLimit()
 }
